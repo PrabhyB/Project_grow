@@ -1,0 +1,242 @@
+.dashboard-page {
+  min-height: 100vh;
+  color: #173f2a;
+  background:
+    radial-gradient(circle at top left, #f9fcf6, transparent 38%),
+    #eff3ec;
+}
+
+.dashboard-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4%;
+  color: white;
+  background: linear-gradient(135deg, #064a2f, #0b6840);
+  box-shadow: 0 10px 30px rgb(6 74 47 / 20%);
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.brand-leaf {
+  font-size: 1.8rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-button,
+.profile-button,
+.logout-button {
+  font: inherit;
+  color: white;
+  border: 0;
+  cursor: pointer;
+}
+
+.notification-button {
+  position: relative;
+  padding: 9px;
+  font-size: 1.35rem;
+  background: transparent;
+}
+
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e43e3e;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.profile-avatar {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  color: #145333;
+  border-radius: 50%;
+  background: #d9efca;
+  font-weight: 800;
+}
+
+.logout-button {
+  padding: 9px 13px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 11px;
+  background: transparent;
+}
+
+.dashboard-content {
+  width: min(1420px, 94%);
+  margin: 0 auto;
+}
+
+.welcome-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 42px 16px 32px;
+  border-bottom: 1px solid #d8dfd5;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #37804c;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.welcome-section h1 {
+  margin: 0 0 11px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+}
+
+.daily-summary,
+.garden-highlight {
+  margin: 7px 0;
+}
+
+.daily-summary {
+  font-size: 1.12rem;
+}
+
+.garden-highlight {
+  color: #66726a;
+}
+
+.current-weather-card {
+  display: flex;
+  min-width: 330px;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  text-align: left;
+  color: #173f2a;
+  border: 1px solid #dfe6dc;
+  border-radius: 23px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 13px 32px rgb(44 77 51 / 10%);
+  cursor: pointer;
+}
+
+.current-weather-icon {
+  font-size: 3.2rem;
+}
+
+.current-weather-details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.current-weather-details strong {
+  font-size: 1.75rem;
+}
+
+.current-weather-details span,
+.current-weather-details small {
+  margin-top: 3px;
+  color: #637068;
+}
+
+.weather-range {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #34804a;
+  font-weight: 700;
+}
+
+.dashboard-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 28px 0;
+  padding: 28px;
+  border: 1px dashed #b8cbb4;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 65%);
+}
+
+.dashboard-placeholder h2 {
+  margin: 0 0 8px;
+}
+
+.dashboard-placeholder p {
+  max-width: 680px;
+  margin: 0;
+  color: #68746c;
+}
+
+.placeholder-icon {
+  display: grid;
+  width: 70px;
+  height: 70px;
+  flex: 0 0 70px;
+  place-items: center;
+  border-radius: 20px;
+  background: #e3f1da;
+  font-size: 2.2rem;
+}
+
+@media (max-width: 720px) {
+  .dashboard-header {
+    padding-inline: 14px;
+  }
+
+  .profile-button > span:last-child {
+    display: none;
+  }
+
+  .logout-button {
+    font-size: 0.8rem;
+  }
+
+  .welcome-section {
+    align-items: stretch;
+    flex-direction: column;
+    padding-inline: 5px;
+  }
+
+  .current-weather-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-placeholder {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
