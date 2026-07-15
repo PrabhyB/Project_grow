@@ -1,14 +1,48 @@
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { getGardenById } from "../data/garden";
 import "./GardenPage.css";
+import { useEffect, useState } from "react";
+import AddPlantForm from "../components/AddPlantForm";
+import {
+  subscribeToGardenPlants,
+  type GardenPlant,
+} from "../services/plantService";
 
 export default function GardenPage() {
   const { gardenId } = useParams();
   const garden = gardenId ? getGardenById(gardenId) : undefined;
+  const [plants, setPlants] = useState<GardenPlant[]>([]);
+const [isAddingPlant, setIsAddingPlant] = useState(false);
+const [isLoadingPlants, setIsLoadingPlants] = useState(true);
+const [plantError, setPlantError] = useState("");
+const navigate = useNavigate();
 
   if (!garden) {
     return <Navigate to="/dashboard" replace />;
   }
+
+  useEffect(() => {
+  if (!gardenId) {
+    return;
+  }
+
+  setIsLoadingPlants(true);
+  setPlantError("");
+
+  const unsubscribe = subscribeToGardenPlants(
+    gardenId,
+    (updatedPlants) => {
+      setPlants(updatedPlants);
+      setIsLoadingPlants(false);
+    },
+    (error) => {
+      setPlantError(error.message);
+      setIsLoadingPlants(false);
+    },
+  );
+
+  return unsubscribe;
+}, [gardenId]);
 
   return (
     <div className="garden-page">
@@ -68,39 +102,65 @@ export default function GardenPage() {
               <p>Select a plant to view its full care record.</p>
             </div>
 
-            <button type="button">＋ Add plant</button>
+            <button
+    type="button"
+    onClick={() => setIsAddingPlant(true)}
+>
+    ＋ Add plant
+</button>
           </div>
 
           <div className="garden-plant-grid">
-            {garden.plants.map((plant) => (
-              <button
-                className={`garden-plant-card ${
-                  plant.needsAttention ? "plant-needs-attention" : ""
-                }`}
-                type="button"
-                key={plant.id}
-              >
-                <span className="plant-card-icon">{plant.icon}</span>
+            {isLoadingPlants ? (
+  <p>Loading plants…</p>
+) : plantError ? (
+  <p className="plant-load-error">{plantError}</p>
+) : plants.length === 0 ? (
+  <div className="empty-garden-message">
+    <span>🌱</span>
+    <h3>No plants added yet</h3>
+    <p>Add the first plant to this garden.</p>
+  </div>
+) : (
+  <div className="garden-plant-grid">
+    {plants.map((plant) => (
+      <button
+        className={`garden-plant-card ${
+          plant.status === "Healthy"
+            ? ""
+            : "plant-needs-attention"
+        }`}
+        type="button"
+        onClick={() => {
+  navigate(`/garden/${garden.id}/plant/${plant.id}`);
+}}
+        key={plant.id}
+      >
+        <span className="plant-card-icon">{plant.icon}</span>
 
-                <span className="plant-card-content">
-                  <strong>{plant.name}</strong>
+        <span className="plant-card-content">
+          <strong>{plant.name}</strong>
 
-                  {plant.variety && <small>{plant.variety}</small>}
+          {plant.variety && <small>{plant.variety}</small>}
 
-                  <span>{plant.stage}</span>
+          <span>{plant.stage}</span>
 
-                  <span
-                    className={
-                      plant.needsAttention ? "plant-status-warning" : ""
-                    }
-                  >
-                    {plant.status}
-                  </span>
-                </span>
+          <span
+            className={
+              plant.status === "Healthy"
+                ? ""
+                : "plant-status-warning"
+            }
+          >
+            {plant.status}
+          </span>
+        </span>
 
-                <span className="plant-card-arrow">›</span>
-              </button>
-            ))}
+        <span className="plant-card-arrow">›</span>
+      </button>
+    ))}
+  </div>
+)}
           </div>
         </section>
 
@@ -118,6 +178,13 @@ export default function GardenPage() {
           <button type="button">View care schedule</button>
         </section>
       </main>
+      {isAddingPlant && (
+  <AddPlantForm
+    gardenId={garden.id}
+    gardenName={garden.name}
+    onClose={() => setIsAddingPlant(false)}
+  />
+)}
     </div>
   );
 }

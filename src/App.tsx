@@ -4,6 +4,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import GardenPage from "./pages/GardenPage";
+import PlantPage from "./pages/PlantPage";
 
 
 export default function App() {
@@ -15,6 +16,10 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/garden/:gardenId" element={<GardenPage />} />
+        <Route
+  path="/garden/:gardenId/plant/:plantId"
+  element={<PlantPage />}
+/>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

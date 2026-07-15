@@ -1,0 +1,118 @@
+.add-plant-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(15 35 23 / 48%);
+  backdrop-filter: blur(5px);
+}
+
+.add-plant-panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding: 24px;
+  color: #173f2a;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 25px 80px rgb(13 48 28 / 35%);
+}
+
+.add-plant-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.add-plant-header p,
+.add-plant-header h2 {
+  margin: 0;
+}
+
+.add-plant-header p {
+  margin-bottom: 4px;
+  color: #438051;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.add-plant-close {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: #31513d;
+  border: 0;
+  border-radius: 50%;
+  background: #edf3e9;
+  font-size: 1.7rem;
+}
+
+.add-plant-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.add-plant-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #31513d;
+  font-weight: 700;
+}
+
+.add-plant-form input,
+.add-plant-form select {
+  min-height: 46px;
+  padding: 10px 12px;
+  color: #173f2a;
+  border: 1px solid #cedbca;
+  border-radius: 11px;
+  background: white;
+  font: inherit;
+}
+
+.add-plant-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ba3834;
+}
+
+.add-plant-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.add-plant-actions button {
+  padding: 11px 16px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+
+.add-plant-actions button:first-child {
+  color: #31513d;
+  border: 1px solid #cad8c6;
+  background: white;
+}
+
+.add-plant-actions button:last-child {
+  color: white;
+  border: 0;
+  background: #347f45;
+}
+
+@media (max-width: 600px) {
+  .add-plant-form {
+    grid-template-columns: 1fr;
+  }
+}

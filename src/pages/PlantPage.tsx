@@ -1,0 +1,127 @@
+import { useEffect, useState } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
+
+import {
+  getGardenPlant,
+  type GardenPlant,
+} from "../services/plantService";
+
+import "./PlantPage.css";
+
+export default function PlantPage() {
+  const { gardenId, plantId } = useParams();
+
+  const [plant, setPlant] = useState<GardenPlant | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!gardenId || !plantId) {
+      setIsLoading(false);
+      return;
+    }
+
+    async function loadPlant() {
+      try {
+        const result = await getGardenPlant(gardenId!, plantId!);
+        setPlant(result);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "The plant could not be loaded.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadPlant();
+  }, [gardenId, plantId]);
+
+  if (!gardenId || !plantId) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (isLoading) {
+    return <main className="plant-state-page">Loading plant…</main>;
+  }
+
+  if (error) {
+    return <main className="plant-state-page">{error}</main>;
+  }
+
+  if (!plant) {
+    return <Navigate to={`/garden/${gardenId}`} replace />;
+  }
+
+  return (
+    <div className="plant-page">
+      <header className="plant-page-header">
+        <Link to={`/garden/${gardenId}`}>← Back to garden</Link>
+
+        <button type="button">Edit plant</button>
+      </header>
+
+      <main className="plant-page-content">
+        <section className="plant-hero">
+          <span className="plant-hero-icon">{plant.icon}</span>
+
+          <div>
+            <p className="plant-eyebrow">Plant record</p>
+            <h1>{plant.name}</h1>
+
+            {plant.variety && <p>{plant.variety}</p>}
+          </div>
+        </section>
+
+        <section className="plant-stat-grid">
+          <article>
+            <span>🌱</span>
+            <strong>{plant.stage}</strong>
+            <small>Growth stage</small>
+          </article>
+
+          <article>
+            <span>💚</span>
+            <strong>{plant.status}</strong>
+            <small>Current status</small>
+          </article>
+
+          <article>
+            <span>📅</span>
+            <strong>{plant.plantedDate || "Not recorded"}</strong>
+            <small>Date planted</small>
+          </article>
+
+          <article>
+            <span>💧</span>
+            <strong>Not recorded</strong>
+            <small>Last watered</small>
+          </article>
+        </section>
+
+        <section className="plant-care-card">
+          <div>
+            <h2>Care recommendation</h2>
+            <p>
+              Weather-aware watering advice will appear here once we connect
+              the forecast and plant-care database.
+            </p>
+          </div>
+
+          <button type="button">Record watering</button>
+        </section>
+
+        <section className="plant-notes-card">
+          <div>
+            <h2>Notes and progress</h2>
+            <button type="button">＋ Add note</button>
+          </div>
+
+          <p>No notes have been recorded for this plant yet.</p>
+        </section>
+      </main>
+    </div>
+  );
+}
