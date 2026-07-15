@@ -1,0 +1,91 @@
+.sunlight-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.map-mode-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #d9e4d6;
+  border-radius: 15px;
+  background: #edf3e9;
+}
+
+.map-mode-toggle button {
+  padding: 9px 14px;
+  color: #587061;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.map-mode-toggle button.active {
+  color: white;
+  background: linear-gradient(145deg, #438f4e, #26713a);
+  box-shadow: 0 5px 13px rgb(40 104 55 / 22%);
+}
+
+.sunlight-time-panel {
+  display: flex;
+  min-width: min(560px, 70%);
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 15px;
+  border: 1px solid #eadfa7;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fffcec, #fff8d8);
+}
+
+.sunlight-time-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sunlight-time-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sunlight-time-heading > span {
+  color: #756b42;
+  font-size: 0.85rem;
+}
+
+.sunlight-symbol {
+  font-size: 1.3rem;
+}
+
+.sunlight-slider-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+  color: #756b42;
+  font-size: 0.8rem;
+}
+
+.sunlight-slider-row input {
+  width: 100%;
+  accent-color: #e6a51b;
+}
+
+@media (max-width: 760px) {
+  .sunlight-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sunlight-time-panel {
+    width: 100%;
+    min-width: 0;
+  }
+}

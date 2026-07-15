@@ -134,4 +134,19 @@
   .property-map {
     width: 920px;
   }
+
+.sun-glow {
+  fill: rgba(255, 216, 72, 0.24);
+  stroke: rgba(255, 220, 85, 0.22);
+  stroke-width: 16;
+  pointer-events: none;
+}
+
+.sun-core {
+  fill: #ffd84d;
+  stroke: #fff4ad;
+  stroke-width: 7;
+  filter: drop-shadow(0 0 13px rgba(255, 214, 64, 0.8));
+  pointer-events: none;
+}
 }

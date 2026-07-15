@@ -1,4 +1,6 @@
 import "./PropertyMap.css";
+import { useState } from "react";
+import SunlightControls from "./SunlightControls";
 
 export type GardenZone = {
   id: string;
@@ -23,6 +25,42 @@ export default function PropertyMap({
   selectedZoneId,
   onSelectZone,
 }: PropertyMapProps) {
+  const [sunlightEnabled, setSunlightEnabled] = useState(false);
+const [timeMinutes, setTimeMinutes] = useState(720);
+
+const daylightProgress = Math.min(
+  1,
+  Math.max(0, (timeMinutes - 360) / (1260 - 360)),
+);
+
+// Sun travels from the left side of the property to the right.
+const sunX = 80 + daylightProgress * 840;
+
+// Creates a curved path: lower at sunrise/sunset and higher at midday.
+const sunY =
+  155 - Math.sin(daylightProgress * Math.PI) * 105;
+
+// Approximate centre of the house.
+const houseCentreX = 330;
+const houseCentreY = 350;
+
+// Direction from the sun toward the house.
+const directionX = houseCentreX - sunX;
+const directionY = houseCentreY - sunY;
+
+const directionLength =
+  Math.sqrt(directionX * directionX + directionY * directionY) || 1;
+
+// Shadow points away from the sun.
+const normalisedX = directionX / directionLength;
+const normalisedY = directionY / directionLength;
+
+// Longer shadows near sunrise/sunset; shorter around midday.
+const sunHeight = Math.sin(daylightProgress * Math.PI);
+const shadowLength = 240 - sunHeight * 150;
+
+const shadowOffsetX = normalisedX * shadowLength;
+const shadowOffsetY = normalisedY * shadowLength;
   return (
     <section className="property-section">
       <div className="property-heading">
@@ -33,6 +71,12 @@ export default function PropertyMap({
 
         <button type="button">Manage gardens</button>
       </div>
+      <SunlightControls
+  enabled={sunlightEnabled}
+  timeMinutes={timeMinutes}
+  onEnabledChange={setSunlightEnabled}
+  onTimeChange={setTimeMinutes}
+/>
 
       <div className="property-map-frame">
         <svg
@@ -87,9 +131,42 @@ export default function PropertyMap({
                 floodOpacity="0.22"
               />
             </filter>
-          </defs>
+            <clipPath id="propertyBoundary">
+  <rect
+    x="8"
+    y="8"
+    width="984"
+    height="604"
+    rx="28"
+  />
+</clipPath>
+{sunlightEnabled && (
+  <g clipPath="url(#propertyBoundary)">
+    <rect
+      className="sunlight-map-tint"
+      x="8"
+      y="8"
+      width="984"
+      height="604"
+      rx="28"
+    />
 
-          <rect
+    <polygon
+      className="house-shadow"
+      points={`
+        175,205
+        485,205
+        ${485 + shadowOffsetX},${205 + shadowOffsetY}
+        ${175 + shadowOffsetX},${205 + shadowOffsetY}
+      `}
+    />
+
+    <circle className="sun-glow" cx={sunX} cy={sunY} r="42" />
+    <circle className="sun-core" cx={sunX} cy={sunY} r="24" />
+  </g>
+)}
+          </defs>
+       <rect
             x="8"
             y="8"
             width="984"
@@ -99,6 +176,48 @@ export default function PropertyMap({
             stroke="#6f954f"
             strokeWidth="8"
           />
+          {sunlightEnabled && (
+  <>
+    <g
+  className="house-shadow"
+  transform={`translate(${shadowOffsetX} ${shadowOffsetY})`}
+>
+  <rect
+    x="175"
+    y="205"
+    width="310"
+    height="285"
+    rx="16"
+  />
+
+  <polygon points="155,235 330,125 505,235 470,355 195,355" />
+</g>
+
+<polygon
+  className="shadow-connector"
+  points={`
+    175,205
+    485,205
+    ${485 + shadowOffsetX},${205 + shadowOffsetY}
+    ${175 + shadowOffsetX},${205 + shadowOffsetY}
+  `}
+/>
+
+    <circle
+      className="sun-glow"
+      cx={sunX}
+      cy={sunY}
+      r="42"
+    />
+
+    <circle
+      className="sun-core"
+      cx={sunX}
+      cy={sunY}
+      r="24"
+    />
+  </>
+)}
 
           <rect
             x="20"
@@ -237,6 +356,43 @@ export default function PropertyMap({
               Shed
             </text>
           </g>
+          {sunlightEnabled && (
+  <g clipPath="url(#propertyBoundary)" pointerEvents="none">
+    <polygon
+      points={`
+        155,235
+        505,235
+        ${505 + shadowOffsetX},${235 + shadowOffsetY}
+        ${330 + shadowOffsetX},${125 + shadowOffsetY}
+        ${155 + shadowOffsetX},${235 + shadowOffsetY}
+      `}
+      fill="#26352b"
+      fillOpacity="0.28"
+    />
+
+    <rect
+      x={175 + shadowOffsetX}
+      y={205 + shadowOffsetY}
+      width="310"
+      height="285"
+      rx="16"
+      fill="#26352b"
+      fillOpacity="0.28"
+    />
+
+    <polygon
+      points={`
+        ${155 + shadowOffsetX},${235 + shadowOffsetY}
+        ${330 + shadowOffsetX},${125 + shadowOffsetY}
+        ${505 + shadowOffsetX},${235 + shadowOffsetY}
+        ${470 + shadowOffsetX},${355 + shadowOffsetY}
+        ${195 + shadowOffsetX},${355 + shadowOffsetY}
+      `}
+      fill="#26352b"
+      fillOpacity="0.28"
+    />
+  </g>
+)}
 
           {zones.map((zone) => (
             <g
