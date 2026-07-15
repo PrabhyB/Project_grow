@@ -1,0 +1,211 @@
+.attention-section {
+  margin: 0 0 24px;
+  padding: 20px;
+  border: 1px solid #dce5d9;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 12px 30px rgb(43 75 51 / 7%);
+}
+
+.attention-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 17px;
+}
+
+.attention-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attention-title-group h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.attention-count {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: white;
+  border-radius: 50%;
+  background: #df403d;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.attention-view-all {
+  padding: 8px;
+  color: #277640;
+  border: 0;
+  background: transparent;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.attention-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.plant-alert-card,
+.other-plants-card,
+.all-clear-card {
+  min-height: 210px;
+  border: 1px solid #e0e6de;
+  border-radius: 21px;
+  background: white;
+  box-shadow: 0 9px 23px rgb(42 70 49 / 8%);
+}
+
+.plant-alert-card {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.plant-alert-card::after {
+  position: absolute;
+  right: -38px;
+  bottom: -52px;
+  width: 130px;
+  height: 130px;
+  content: "";
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.055;
+}
+
+.plant-alert-icon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  place-items: center;
+  border-radius: 16px;
+  background: #eef4ec;
+  font-size: 1.7rem;
+}
+
+.plant-alert-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.plant-alert-title {
+  color: currentColor;
+  font-weight: 800;
+}
+
+.plant-alert-content h3 {
+  margin: 7px 0 3px;
+  color: #173f2a;
+  font-size: 1.16rem;
+}
+
+.plant-alert-location {
+  margin: 0 0 8px;
+  color: #2d7945;
+  font-size: 0.91rem;
+}
+
+.plant-alert-description {
+  margin: 0 0 14px;
+  color: #68736c;
+  line-height: 1.45;
+}
+
+.plant-alert-content button {
+  width: 100%;
+  margin-top: auto;
+  padding: 11px;
+  color: white;
+  border: 0;
+  border-radius: 11px;
+  background: currentColor;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.alert-urgent {
+  color: #dd403d;
+}
+
+.alert-warning {
+  color: #eb9019;
+}
+
+.alert-weather {
+  color: #2c7db8;
+}
+
+.other-plants-card,
+.all-clear-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 23px;
+  background: linear-gradient(135deg, #edf7e8, #fbfcf9);
+}
+
+.all-clear-card {
+  min-height: 125px;
+}
+
+.other-plants-card h3,
+.other-plants-card p,
+.all-clear-card h3,
+.all-clear-card p {
+  margin: 5px 0;
+}
+
+.other-plants-card p,
+.all-clear-card p {
+  color: #657168;
+}
+
+.other-plants-icon,
+.all-clear-icon {
+  display: grid;
+  width: 53px;
+  height: 53px;
+  flex: 0 0 53px;
+  place-items: center;
+  color: white;
+  border-radius: 50%;
+  background: #3d9147;
+  font-size: 1.6rem;
+  font-weight: 850;
+}
+
+@media (max-width: 1050px) {
+  .attention-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .attention-section {
+    padding: 15px;
+  }
+
+  .attention-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .other-plants-card {
+    min-height: 125px;
+  }
+}
