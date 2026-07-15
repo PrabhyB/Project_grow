@@ -4,6 +4,8 @@ import "./GardenDetailsPanel.css";
 type GardenDetailsPanelProps = {
   zone: GardenZone;
   onClose: () => void;
+  onOpenGarden: (zone: GardenZone)
+  => void;
 };
 
 const samplePlants: Record<
@@ -84,6 +86,7 @@ const samplePlants: Record<
 export default function GardenDetailsPanel({
   zone,
   onClose,
+  onOpenGarden,
 }: GardenDetailsPanelProps) {
   const plants = samplePlants[zone.id] ?? [];
 
@@ -158,7 +161,8 @@ export default function GardenDetailsPanel({
         </div>
       )}
 
-      <button className="open-garden-button" type="button">
+      <button className="open-garden-button" type="button" onClick={() =>onOpenGarden(zone)}
+        >
         Open full garden
       </button>
     </aside>

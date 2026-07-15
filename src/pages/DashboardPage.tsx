@@ -200,6 +200,9 @@ export default function DashboardPage() {
   <GardenDetailsPanel
     zone={selectedGarden}
     onClose={() => setSelectedGarden(null)}
+    onOpenGarden={(zone) => {
+      navigate(`/garden/${zone.id}`);
+    }}
   />
 )}
     </div>

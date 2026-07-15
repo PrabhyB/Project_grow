@@ -1,0 +1,241 @@
+.garden-page {
+  min-height: 100vh;
+  color: #173f2a;
+  background:
+    radial-gradient(circle at top left, #f9fcf6, transparent 40%),
+    #eff3ec;
+}
+
+.garden-page-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 5%;
+  color: white;
+  background: linear-gradient(135deg, #064a2f, #0b6840);
+}
+
+.garden-page-header h1 {
+  margin: 2px 0 5px;
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.garden-page-header p {
+  margin: 0;
+  color: rgb(255 255 255 / 78%);
+}
+
+.garden-page-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.back-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 750;
+}
+
+.garden-settings-button {
+  padding: 11px 15px;
+  color: white;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.garden-page-content {
+  width: min(1200px, 94%);
+  margin: 0 auto;
+  padding: 26px 0 50px;
+}
+
+.garden-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.garden-stat-grid article {
+  display: flex;
+  min-height: 130px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #dce5d9;
+  border-radius: 19px;
+  background: white;
+  box-shadow: 0 9px 23px rgb(43 75 51 / 7%);
+}
+
+.garden-stat-grid article > span {
+  font-size: 1.65rem;
+}
+
+.garden-stat-grid strong {
+  font-size: 1.25rem;
+}
+
+.garden-stat-grid small {
+  color: #68746c;
+}
+
+.garden-plants-section {
+  padding: 21px;
+  border: 1px solid #dce5d9;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 12px 30px rgb(43 75 51 / 7%);
+}
+
+.garden-plants-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 17px;
+}
+
+.garden-plants-heading h2,
+.garden-plants-heading p {
+  margin: 0;
+}
+
+.garden-plants-heading p {
+  margin-top: 5px;
+  color: #68746c;
+}
+
+.garden-plants-heading button {
+  padding: 11px 15px;
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  background: #347f45;
+  font-weight: 800;
+}
+
+.garden-plant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.garden-plant-card {
+  display: grid;
+  min-height: 125px;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  text-align: left;
+  color: #173f2a;
+  border: 1px solid #e0e7dd;
+  border-radius: 18px;
+  background: #fbfcfa;
+}
+
+.garden-plant-card.plant-needs-attention {
+  border-color: #edb09b;
+  background: #fff9f5;
+}
+
+.plant-card-icon {
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  border-radius: 17px;
+  background: #eaf4e5;
+  font-size: 2rem;
+}
+
+.plant-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plant-card-content strong {
+  font-size: 1.1rem;
+}
+
+.plant-card-content small,
+.plant-card-content span {
+  color: #68746c;
+}
+
+.plant-card-content .plant-status-warning {
+  color: #d65b35;
+  font-weight: 750;
+}
+
+.plant-card-arrow {
+  color: #78867c;
+  font-size: 2rem;
+}
+
+.garden-care-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 22px;
+  padding: 19px 21px;
+  border: 1px solid #dce5d7;
+  border-radius: 20px;
+  background: #edf7e8;
+}
+
+.garden-care-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.garden-care-summary > div > span {
+  font-size: 2rem;
+}
+
+.garden-care-summary p {
+  margin: 4px 0 0;
+  color: #68746c;
+}
+
+.garden-care-summary button {
+  padding: 11px 14px;
+  color: #287640;
+  border: 1px solid #bcd2b7;
+  border-radius: 12px;
+  background: white;
+  font-weight: 750;
+}
+
+@media (max-width: 800px) {
+  .garden-page-header {
+    grid-template-columns: 1fr;
+  }
+
+  .garden-settings-button {
+    justify-self: start;
+  }
+
+  .garden-stat-grid {
+    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(135px, 1fr));
+  }
+
+  .garden-plant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .garden-care-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
