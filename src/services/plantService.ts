@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
 
@@ -20,6 +21,7 @@ export type GardenPlant = {
   status: string;
   icon: string;
   plantedDate: string;
+  lastWateredAt?: unknown;
   createdAt?: unknown;
 };
 
@@ -112,4 +114,99 @@ export async function getGardenPlant(
     id: snapshot.id,
     ...snapshot.data(),
   } as GardenPlant;
+}
+export type WateringRecord = {
+  id: string;
+  wateredAt: string;
+  amount: string;
+  note: string;
+  createdAt?: unknown;
+};
+
+export type NewWateringRecord = Omit<
+  WateringRecord,
+  "id" | "createdAt"
+>;
+
+function getPlantReference(gardenId: string, plantId: string) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("You must be logged in to update this plant.");
+  }
+
+  return doc(
+    db,
+    "users",
+    user.uid,
+    "gardens",
+    gardenId,
+    "plants",
+    plantId,
+  );
+}
+
+function getWateringCollection(gardenId: string, plantId: string) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("You must be logged in to access watering records.");
+  }
+
+  return collection(
+    db,
+    "users",
+    user.uid,
+    "gardens",
+    gardenId,
+    "plants",
+    plantId,
+    "waterings",
+  );
+}
+
+export async function recordPlantWatering(
+  gardenId: string,
+  plantId: string,
+  watering: NewWateringRecord,
+) {
+  const plantReference = getPlantReference(gardenId, plantId);
+  const wateringCollection = getWateringCollection(gardenId, plantId);
+
+  await addDoc(wateringCollection, {
+    ...watering,
+    createdAt: serverTimestamp(),
+  });
+
+  await updateDoc(plantReference, {
+    lastWateredAt: watering.wateredAt,
+    status: "Healthy",
+  });
+}
+
+export function subscribeToWateringHistory(
+  gardenId: string,
+  plantId: string,
+  onRecordsChanged: (records: WateringRecord[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const wateringQuery = query(
+    getWateringCollection(gardenId, plantId),
+    orderBy("createdAt", "desc"),
+  );
+
+  return onSnapshot(
+    wateringQuery,
+    (snapshot) => {
+      const records = snapshot.docs.map((wateringDocument) => ({
+        id: wateringDocument.id,
+        ...wateringDocument.data(),
+      })) as WateringRecord[];
+
+      onRecordsChanged(records);
+    },
+    (error) => {
+      onError?.(error);
+    },
+  );
 }

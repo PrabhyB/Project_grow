@@ -1,0 +1,111 @@
+.watering-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(15 35 23 / 48%);
+  backdrop-filter: blur(5px);
+}
+
+.watering-panel {
+  width: min(500px, 100%);
+  padding: 24px;
+  color: #173f2a;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 25px 80px rgb(13 48 28 / 35%);
+}
+
+.watering-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.watering-header h2,
+.watering-header p {
+  margin: 0;
+}
+
+.watering-header p {
+  margin-bottom: 4px;
+  color: #3f8050;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.watering-header > button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: #31513d;
+  border: 0;
+  border-radius: 50%;
+  background: #edf3e9;
+  font-size: 1.7rem;
+}
+
+.watering-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.watering-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #31513d;
+  font-weight: 700;
+}
+
+.watering-form input,
+.watering-form select,
+.watering-form textarea {
+  padding: 11px 12px;
+  color: #173f2a;
+  border: 1px solid #cedbca;
+  border-radius: 11px;
+  background: white;
+  font: inherit;
+}
+
+.watering-form textarea {
+  resize: vertical;
+}
+
+.watering-error {
+  margin: 0;
+  color: #ba3834;
+}
+
+.watering-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.watering-actions button {
+  padding: 11px 16px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+
+.watering-actions button:first-child {
+  color: #31513d;
+  border: 1px solid #cad8c6;
+  background: white;
+}
+
+.watering-actions button:last-child {
+  color: white;
+  border: 0;
+  background: #347f45;
+}

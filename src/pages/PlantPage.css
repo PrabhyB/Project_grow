@@ -157,6 +157,82 @@
   color: #68746c;
 }
 
+.watering-history-card {
+  margin-bottom: 20px;
+  padding: 22px;
+  border: 1px solid #dce5d9;
+  border-radius: 22px;
+  background: white;
+}
+
+.watering-history-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.watering-history-heading h2,
+.watering-history-heading p {
+  margin: 0;
+}
+
+.watering-history-heading p {
+  margin-top: 5px;
+  color: #68746c;
+}
+
+.watering-history-heading > span {
+  padding: 7px 10px;
+  color: #287640;
+  border-radius: 999px;
+  background: #edf6e9;
+  font-weight: 750;
+}
+
+.watering-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.watering-history-list article {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid #e0e7dd;
+  border-radius: 15px;
+  background: #fafcf9;
+}
+
+.watering-history-list article div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.watering-history-list article span,
+.watering-history-list article small {
+  color: #68746c;
+}
+
+.watering-drop {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  place-items: center;
+  border-radius: 13px;
+  background: #e7f3fb;
+  font-size: 1.35rem;
+}
+
+.watering-empty {
+  color: #68746c;
+}
+
 @media (max-width: 700px) {
   .plant-stat-grid {
     grid-template-columns: repeat(2, 1fr);

@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
+import RecordWateringForm from "../components/RecordWateringForm";
+
 import {
   getGardenPlant,
+  subscribeToWateringHistory,
   type GardenPlant,
+  type WateringRecord,
 } from "../services/plantService";
 
 import "./PlantPage.css";
@@ -12,6 +16,8 @@ export default function PlantPage() {
   const { gardenId, plantId } = useParams();
 
   const [plant, setPlant] = useState<GardenPlant | null>(null);
+  const [wateringHistory, setWateringHistory] = useState<WateringRecord[]>([]);
+  const [isRecordingWatering, setIsRecordingWatering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -39,6 +45,23 @@ export default function PlantPage() {
     void loadPlant();
   }, [gardenId, plantId]);
 
+  useEffect(() => {
+    if (!gardenId || !plantId) {
+      return;
+    }
+
+    const unsubscribe = subscribeToWateringHistory(
+      gardenId,
+      plantId,
+      setWateringHistory,
+      (wateringError) => {
+        console.error("Watering history error:", wateringError);
+      },
+    );
+
+    return unsubscribe;
+  }, [gardenId, plantId]);
+
   if (!gardenId || !plantId) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -59,7 +82,6 @@ export default function PlantPage() {
     <div className="plant-page">
       <header className="plant-page-header">
         <Link to={`/garden/${gardenId}`}>← Back to garden</Link>
-
         <button type="button">Edit plant</button>
       </header>
 
@@ -70,7 +92,6 @@ export default function PlantPage() {
           <div>
             <p className="plant-eyebrow">Plant record</p>
             <h1>{plant.name}</h1>
-
             {plant.variety && <p>{plant.variety}</p>}
           </div>
         </section>
@@ -78,13 +99,13 @@ export default function PlantPage() {
         <section className="plant-stat-grid">
           <article>
             <span>🌱</span>
-            <strong>{plant.stage}</strong>
+            <strong>{plant.stage || "Not recorded"}</strong>
             <small>Growth stage</small>
           </article>
 
           <article>
             <span>💚</span>
-            <strong>{plant.status}</strong>
+            <strong>{plant.status || "Not recorded"}</strong>
             <small>Current status</small>
           </article>
 
@@ -96,7 +117,11 @@ export default function PlantPage() {
 
           <article>
             <span>💧</span>
-            <strong>Not recorded</strong>
+            <strong>
+              {plant.lastWateredAt
+                ? String(plant.lastWateredAt)
+                : "Not recorded"}
+            </strong>
             <small>Last watered</small>
           </article>
         </section>
@@ -110,7 +135,43 @@ export default function PlantPage() {
             </p>
           </div>
 
-          <button type="button">Record watering</button>
+          <button
+            type="button"
+            onClick={() => setIsRecordingWatering(true)}
+          >
+            Record watering
+          </button>
+        </section>
+
+        <section className="watering-history-card">
+          <div className="watering-history-heading">
+            <div>
+              <h2>Watering history</h2>
+              <p>Recent watering activity for this plant.</p>
+            </div>
+
+            <span>{wateringHistory.length} records</span>
+          </div>
+
+          {wateringHistory.length === 0 ? (
+            <p className="watering-empty">
+              No watering has been recorded yet.
+            </p>
+          ) : (
+            <div className="watering-history-list">
+              {wateringHistory.map((record) => (
+                <article key={record.id}>
+                  <span className="watering-drop">💧</span>
+
+                  <div>
+                    <strong>{record.wateredAt}</strong>
+                    <span>{record.amount}</span>
+                    {record.note && <small>{record.note}</small>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="plant-notes-card">
@@ -122,6 +183,15 @@ export default function PlantPage() {
           <p>No notes have been recorded for this plant yet.</p>
         </section>
       </main>
+
+      {isRecordingWatering && (
+        <RecordWateringForm
+          gardenId={gardenId}
+          plantId={plantId}
+          plantName={plant.name}
+          onClose={() => setIsRecordingWatering(false)}
+        />
+      )}
     </div>
   );
 }
