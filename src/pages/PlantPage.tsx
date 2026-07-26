@@ -93,6 +93,12 @@ export default function PlantPage() {
             <p className="plant-eyebrow">Plant record</p>
             <h1>{plant.name}</h1>
             {plant.variety && <p>{plant.variety}</p>}
+            {plant.scientificName && (
+                <p className="plant-scientific-name">
+                    <em>{plant.scientificName}</em>
+                      </p>
+                      
+            )}
           </div>
         </section>
 

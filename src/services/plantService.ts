@@ -15,12 +15,18 @@ import { auth, db } from "../lib/firebase";
 
 export type GardenPlant = {
   id: string;
+  libraryPlantId?: string;
   name: string;
+  scientificName?: string;
   variety: string;
   stage: string;
   status: string;
   icon: string;
   plantedDate: string;
+  sunRequirement?: string;
+  wateringNeed?: string;
+  spacingCm?: number;
+  typicalHeightCm?: number;
   lastWateredAt?: unknown;
   createdAt?: unknown;
 };

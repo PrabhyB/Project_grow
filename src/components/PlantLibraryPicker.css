@@ -1,0 +1,139 @@
+.plant-library-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.plant-library-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #31513d;
+  font-weight: 700;
+}
+
+.plant-library-search input {
+  min-height: 48px;
+  padding: 11px 13px;
+  color: #173f2a;
+  border: 1px solid #cbd9c7;
+  border-radius: 12px;
+  background: white;
+  font: inherit;
+}
+
+.plant-category-filter {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.plant-category-filter button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  color: #4d6655;
+  border: 1px solid #d8e3d5;
+  border-radius: 999px;
+  background: #f5f8f3;
+  font-weight: 700;
+}
+
+.plant-category-filter button.active {
+  color: white;
+  border-color: #347f45;
+  background: #347f45;
+}
+
+.plant-library-results {
+  display: flex;
+  max-height: 330px;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 3px;
+}
+
+.plant-library-result {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  color: #173f2a;
+  border: 1px solid #dfe7dc;
+  border-radius: 15px;
+  background: #fbfcfa;
+}
+
+.plant-library-result.selected {
+  border-color: #57a461;
+  background: #edf7e9;
+  box-shadow: 0 0 0 2px rgb(67 145 78 / 12%);
+}
+
+.library-plant-icon {
+  display: grid;
+  width: 49px;
+  height: 49px;
+  place-items: center;
+  border-radius: 14px;
+  background: #e8f3e3;
+  font-size: 1.65rem;
+}
+
+.library-plant-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.library-plant-copy strong {
+  font-size: 1rem;
+}
+
+.library-plant-copy span {
+  color: #397c4a;
+  font-weight: 700;
+}
+
+.library-plant-copy small {
+  overflow: hidden;
+  color: #68746c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-selection {
+  color: #37804a;
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.plant-library-empty {
+  display: grid;
+  min-height: 130px;
+  place-items: center;
+  align-content: center;
+  color: #68746c;
+  border-radius: 15px;
+  background: #f5f8f3;
+}
+
+.plant-library-empty span {
+  font-size: 1.8rem;
+}
+
+.plant-library-empty p {
+  margin: 5px 0;
+}
+
+.plant-library-total {
+  margin: 0;
+  color: #728078;
+  font-size: 0.82rem;
+}

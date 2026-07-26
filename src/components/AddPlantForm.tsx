@@ -8,6 +8,10 @@ import {
 
 import "./AddPlantForm.css";
 
+import PlantLibraryPicker from "./PlantLibraryPicker";
+
+import type { PlantLibraryEntry } from "../data/plantLibrary";
+
 type AddPlantFormProps = {
   gardenId: string;
   gardenName: string;
@@ -15,12 +19,18 @@ type AddPlantFormProps = {
 };
 
 const initialPlant: NewGardenPlant = {
+  libraryPlantId: "",
   name: "",
+  scientificName: "",
   variety: "",
   stage: "Growing",
   status: "Healthy",
   icon: "🌱",
   plantedDate: "",
+  sunRequirement: "",
+  wateringNeed: "",
+  spacingCm: 0,
+  typicalHeightCm: 0,
 };
 
 export default function AddPlantForm({
@@ -29,6 +39,8 @@ export default function AddPlantForm({
   onClose,
 }: AddPlantFormProps) {
   const [plant, setPlant] = useState<NewGardenPlant>(initialPlant);
+  const [selectedLibraryPlant, setSelectedLibraryPlant] =
+  useState<PlantLibraryEntry | null>(null);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,6 +53,25 @@ export default function AddPlantForm({
       [key]: value,
     }));
   }
+
+  function selectLibraryPlant(
+  libraryPlant: PlantLibraryEntry,
+) {
+  setSelectedLibraryPlant(libraryPlant);
+
+  setPlant((currentPlant) => ({
+    ...currentPlant,
+    libraryPlantId: libraryPlant.id,
+    name: libraryPlant.commonName,
+    scientificName: libraryPlant.scientificName,
+    variety: libraryPlant.variety ?? "",
+    icon: libraryPlant.icon,
+    sunRequirement: libraryPlant.sunRequirement,
+    wateringNeed: libraryPlant.wateringNeed,
+    spacingCm: libraryPlant.spacingCm,
+    typicalHeightCm: libraryPlant.typicalHeightCm,
+  }));
+}
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,6 +117,10 @@ export default function AddPlantForm({
         </div>
 
         <form onSubmit={handleSubmit} className="add-plant-form">
+          <PlantLibraryPicker
+  selectedPlantId={selectedLibraryPlant?.id}
+  onSelectPlant={selectLibraryPlant}
+/>
           <label>
             Plant name
             <input
