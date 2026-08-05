@@ -1,0 +1,154 @@
+.plant-health-card {
+  margin-bottom: 20px;
+  padding: 22px;
+  border: 1px solid #dce5d9;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 12px 30px rgb(43 75 51 / 7%);
+}
+
+.plant-health-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e3e9e1;
+}
+
+.plant-health-summary p,
+.plant-health-summary h2,
+.plant-health-summary strong {
+  margin: 0;
+}
+
+.plant-health-summary p {
+  margin-bottom: 5px;
+  color: #68746c;
+}
+
+.plant-health-summary h2 {
+  font-size: 2.6rem;
+}
+
+.plant-health-summary strong {
+  color: #37804a;
+}
+
+.health-score-ring {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  flex: 0 0 96px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.health-score-ring span {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 50%;
+  background: white;
+  font-size: 1.25rem;
+  font-weight: 850;
+}
+
+.health-score-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin-top: 20px;
+}
+
+.health-score-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.health-score-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: #edf5e9;
+  font-size: 1.35rem;
+}
+
+.health-score-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.health-score-heading span {
+  color: #37804a;
+  font-weight: 800;
+}
+
+.health-score-track {
+  height: 9px;
+  margin: 7px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5ebe2;
+}
+
+.health-score-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6ab15f, #2f8543);
+}
+
+.health-score-content small {
+  color: #68746c;
+  line-height: 1.4;
+}
+
+.health-next-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-top: 21px;
+  padding: 16px;
+  border: 1px solid #e5dcaa;
+  border-radius: 16px;
+  background: #fffbea;
+}
+
+.health-next-action > span {
+  font-size: 1.5rem;
+}
+
+.health-next-action strong,
+.health-next-action p {
+  margin: 0;
+}
+
+.health-next-action p {
+  margin-top: 4px;
+  color: #6e6745;
+}
+
+@media (max-width: 600px) {
+  .plant-health-summary {
+    align-items: flex-start;
+  }
+
+  .health-score-ring {
+    width: 82px;
+    height: 82px;
+    flex-basis: 82px;
+  }
+
+  .health-score-ring span {
+    width: 61px;
+    height: 61px;
+  }
+}

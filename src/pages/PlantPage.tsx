@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
+
 import RecordWateringForm from "../components/RecordWateringForm";
 
 import {
@@ -12,9 +13,13 @@ import {
 
 import "./PlantPage.css";
 
+import PlantHealthCard from "../components/PlantHealthCard";
+import { assessPlantCare } from "../services/careEngine";
+import { useWeather } from "../hooks/useWeather";
+
 export default function PlantPage() {
   const { gardenId, plantId } = useParams();
-
+  const { forecast } = useWeather();
   const [plant, setPlant] = useState<GardenPlant | null>(null);
   const [wateringHistory, setWateringHistory] = useState<WateringRecord[]>([]);
   const [isRecordingWatering, setIsRecordingWatering] = useState(false);
@@ -78,6 +83,39 @@ export default function PlantPage() {
     return <Navigate to={`/garden/${gardenId}`} replace />;
   }
 
+  const todayWeather = forecast?.daily[0];
+const tomorrowWeather = forecast?.daily[1];
+
+const expectedRainMm =
+  (todayWeather?.precipitationMm ?? 0) +
+  (tomorrowWeather?.precipitationMm ?? 0);
+
+const careAssessment = assessPlantCare(plant, {
+  sunlightHours:
+    todayWeather?.sunshineDurationSeconds !== undefined
+      ? todayWeather.sunshineDurationSeconds / 3600
+      : 6,
+
+  temperatureC:
+    forecast?.current.temperatureC ?? 20,
+
+  expectedRainMm,
+
+  daysSinceWatering:
+    wateringHistory.length > 0
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() -
+              new Date(
+                wateringHistory[0].wateredAt,
+              ).getTime()) /
+              86_400_000,
+          ),
+        )
+      : 7,
+});
+
   return (
     <div className="plant-page">
       <header className="plant-page-header">
@@ -131,6 +169,8 @@ export default function PlantPage() {
             <small>Last watered</small>
           </article>
         </section>
+
+        <PlantHealthCard assessment={careAssessment} />
 
         <section className="plant-care-card">
           <div>

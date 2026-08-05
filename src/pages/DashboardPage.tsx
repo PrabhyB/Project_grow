@@ -1,46 +1,28 @@
 import { useNavigate } from "react-router-dom";
 import AttentionSection from "../components/AttentionSection";
-import type { AttentionItem } from "../components/AttentionSection";
+//import type { AttentionItem } from "../components/AttentionSection";
 import { auth } from "../lib/firebase";
 import { logoutUser } from "../services/authService";
 import "./DashboardPage.css";
 import PropertyMap from "../components/property-map/PropertyMap";
 import type { GardenZone } from "../components/property-map/PropertyMap";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import GardenDetailsPanel from "../components/property-map/GardenDetailsPanel";
+import { useWeather } from "../hooks/useWeather";
+import WeatherSummaryCard from "../components/WeatherSummaryCard";
+import WeatherForecastStrip from "../components/WeatherForecastStrip";
+import {
+  subscribeToGardenPlants,
+  type GardenPlant,
+} from "../services/plantService";
+import {
+  buildAttentionItems,
+} from "../services/dashboardAttentionService";
 
-const attentionItems: AttentionItem[] = [
-  {
-    id: "tomato-water",
-    plantName: "Tomato",
-    gardenName: "Back Garden",
-    title: "Needs water",
-    description: "Last watered two days ago.",
-    icon: "💧",
-    actionLabel: "Water now",
-    level: "urgent",
-  },
-  {
-    id: "cucumber-pests",
-    plantName: "Cucumber",
-    gardenName: "Vegetable Patch",
-    title: "Possible pests",
-    description: "Check the underside of the leaves.",
-    icon: "🐛",
-    actionLabel: "Inspect",
-    level: "warning",
-  },
-  {
-    id: "basil-frost",
-    plantName: "Basil",
-    gardenName: "Herb Garden",
-    title: "Cold weather alert",
-    description: "Low temperatures are expected tonight.",
-    icon: "❄️",
-    actionLabel: "Protect",
-    level: "weather",
-  },
-];
+type DashboardPlant = GardenPlant & {
+  gardenId: string;
+  gardenName: string;
+};
 
 const gardenZones: GardenZone[] = [
   {
@@ -89,14 +71,18 @@ const gardenZones: GardenZone[] = [
   },
 ];
 
-<PropertyMap
-  zones={gardenZones}
-  onSelectZone={(zone) => {
-    console.log("Selected garden:", zone);
-  }}
-/>
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const {
+  forecast,
+  isLoading: isLoadingWeather,
+  error: weatherError,
+  reloadWeather,
+} = useWeather();
+
+  const [dashboardPlants, setDashboardPlants] = useState<
+  DashboardPlant[]
+>([]);
 
   const [selectedGarden, setSelectedGarden] =
   useState<GardenZone | null>(null);
@@ -106,10 +92,54 @@ export default function DashboardPage() {
     auth.currentUser?.email?.split("@")[0] ||
     "Gardener";
 
+    const attentionItems = buildAttentionItems(
+  dashboardPlants,
+);
   async function handleLogout() {
     await logoutUser();
     navigate("/login");
   }
+
+  useEffect(() => {
+  const plantsByGarden: Record<string, GardenPlant[]> = {};
+
+  const unsubscribes = gardenZones.map((garden) =>
+    subscribeToGardenPlants(
+      garden.id,
+      (loadedPlants) => {
+  console.log("Garden:", garden.name);
+  console.log(loadedPlants);
+
+  plantsByGarden[garden.id] = loadedPlants;
+
+  const combinedPlants = gardenZones.flatMap(
+    (gardenZone) =>
+      (plantsByGarden[gardenZone.id] ?? []).map((plant) => ({
+        ...plant,
+        gardenId: gardenZone.id,
+        gardenName: gardenZone.name,
+      })),
+  );
+
+  console.log("Combined:", combinedPlants);
+
+  setDashboardPlants(combinedPlants);
+},
+      (error) => {
+        console.error(
+          `Unable to load plants from ${garden.name}:`,
+          error,
+        );
+      },
+    ),
+  );
+
+  return () => {
+    unsubscribes.forEach((unsubscribe) => {
+      unsubscribe();
+    });
+  };
+}, []);
 
   return (
     <div className="dashboard-page">
@@ -162,22 +192,32 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <button className="current-weather-card" type="button">
-            <span className="current-weather-icon">🌤️</span>
-
-            <span className="current-weather-details">
-              <strong>18°C</strong>
-              <span>Partly cloudy</span>
-              <small>London, UK</small>
-            </span>
-
-            <span className="weather-range">
-              <span>↑ 20°</span>
-              <span>↓ 12°</span>
-            </span>
-          </button>
+          <WeatherSummaryCard
+  forecast={forecast}
+  isLoading={isLoadingWeather}
+  error={weatherError}
+  onRetry={reloadWeather}
+/>
         </section>
 
+        {forecast && (
+  <WeatherForecastStrip days={forecast.daily} />
+)}
+
+<p>Plants loaded: {dashboardPlants.length}</p>
+
+<pre
+  style={{
+    whiteSpace: "pre-wrap",
+    fontSize: "12px",
+    maxHeight: "300px",
+    overflow: "auto",
+    background: "#f5f5f5",
+    padding: "10px",
+  }}
+>
+  {JSON.stringify(dashboardPlants, null, 2)}
+</pre>
         <AttentionSection
           items={attentionItems}
           onAction={(item) => {
