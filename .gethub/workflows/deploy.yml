@@ -1,0 +1,78 @@
+name: Build and deploy GrowHub
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: growhub-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy to Hetzner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create production environment file
+        env:
+          VITE_ENV_FILE: ${{ secrets.VITE_ENV_FILE }}
+        run: |
+          if [ -z "$VITE_ENV_FILE" ]; then
+            echo "The VITE_ENV_FILE repository secret is empty."
+            exit 1
+          fi
+
+          printf '%s\n' "$VITE_ENV_FILE" > .env.production
+
+      - name: Build GrowHub
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/.htaccess
+          echo "GrowHub build output verified."
+
+      - name: Install SFTP deployment tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lftp
+
+      - name: Deploy to Hetzner through SFTP
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          lftp \
+            --env-password \
+            --user "$SFTP_USERNAME" \
+            --port "$SFTP_PORT" \
+            "sftp://$SFTP_HOST" \
+            -e "
+              set sftp:auto-confirm yes;
+              set net:max-retries 2;
+              set net:timeout 30;
+              mirror --reverse --verbose --parallel=2 ./dist /growHub;
+              bye
+            "
