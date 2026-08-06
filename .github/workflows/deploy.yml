@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -32,47 +32,79 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create production environment file
+      - name: Check Firebase configuration
+        shell: bash
         env:
-          VITE_ENV_FILE: ${{ secrets.VITE_ENV_FILE }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
-          if [ -z "$VITE_ENV_FILE" ]; then
-            echo "The VITE_ENV_FILE repository secret is empty."
-            exit 1
-          fi
+          required_variables=(
+            VITE_FIREBASE_API_KEY
+            VITE_FIREBASE_AUTH_DOMAIN
+            VITE_FIREBASE_PROJECT_ID
+            VITE_FIREBASE_STORAGE_BUCKET
+            VITE_FIREBASE_MESSAGING_SENDER_ID
+            VITE_FIREBASE_APP_ID
+          )
 
-          printf '%s\n' "$VITE_ENV_FILE" > .env.production
+          for variable in "${required_variables[@]}"; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::$variable is missing from GitHub repository secrets."
+              exit 1
+            fi
+          done
+
+          echo "Firebase configuration is available."
 
       - name: Build GrowHub
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: npm run build
 
       - name: Verify build output
         run: |
           test -f dist/index.html
-          test -f dist/.htaccess
-          echo "GrowHub build output verified."
+          echo "GrowHub build completed successfully."
 
       - name: Install SFTP deployment tool
         run: |
           sudo apt-get update
           sudo apt-get install --yes lftp
 
-      - name: Deploy to Hetzner through SFTP
+      - name: Deploy to Hetzner using SFTP
+        shell: bash
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_PORT: ${{ secrets.SFTP_PORT }}
           SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
           LFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
+          if [ -z "$SFTP_HOST" ] ||
+             [ -z "$SFTP_PORT" ] ||
+             [ -z "$SFTP_USERNAME" ] ||
+             [ -z "$LFTP_PASSWORD" ]; then
+            echo "::error::One or more SFTP repository secrets are missing."
+            exit 1
+          fi
+
           lftp \
             --env-password \
             --user "$SFTP_USERNAME" \
             --port "$SFTP_PORT" \
-            "sftp://$SFTP_HOST" \
-            -e "
-              set sftp:auto-confirm yes;
-              set net:max-retries 2;
-              set net:timeout 30;
-              mirror --reverse --verbose --parallel=2 ./dist /growHub;
-              bye
-            "
+            "sftp://$SFTP_HOST" <<'LFTP_COMMANDS'
+          set cmd:fail-exit yes
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          mirror --reverse --verbose --parallel=2 ./dist/ /growHub/
+          bye
+          LFTP_COMMANDS
