@@ -8,8 +8,10 @@ from "react-router-dom"; import { loginUser } from
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setIsSubmitting(true); try { await 
       loginUser(email, password); navigate("/dashboard");
-    } catch {
-      setError("The email or password is incorrect.");
+    } catch (error: any) {
+  console.error("Login error:", error);
+  setError(error?.code ?? error?.message ?? "Unknown login error");
+
     } finally {
       setIsSubmitting(false);
     }
