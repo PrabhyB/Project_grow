@@ -200,7 +200,7 @@ export default function DashboardPage() {
         {forecast && (
   <WeatherForecastStrip days={forecast.daily} />
 )}
-1
+
 
         <AttentionSection
           items={attentionItems}
