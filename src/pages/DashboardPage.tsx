@@ -107,8 +107,6 @@ export default function DashboardPage() {
     subscribeToGardenPlants(
       garden.id,
       (loadedPlants) => {
-  console.log("Garden:", garden.name);
-  console.log(loadedPlants);
 
   plantsByGarden[garden.id] = loadedPlants;
 
@@ -121,7 +119,6 @@ export default function DashboardPage() {
       })),
   );
 
-  console.log("Combined:", combinedPlants);
 
   setDashboardPlants(combinedPlants);
 },
@@ -203,21 +200,8 @@ export default function DashboardPage() {
         {forecast && (
   <WeatherForecastStrip days={forecast.daily} />
 )}
+1
 
-<p>Plants loaded: {dashboardPlants.length}</p>
-
-<pre
-  style={{
-    whiteSpace: "pre-wrap",
-    fontSize: "12px",
-    maxHeight: "300px",
-    overflow: "auto",
-    background: "#f5f5f5",
-    padding: "10px",
-  }}
->
-  {JSON.stringify(dashboardPlants, null, 2)}
-</pre>
         <AttentionSection
           items={attentionItems}
           onAction={(item) => {

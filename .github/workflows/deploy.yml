@@ -105,6 +105,6 @@ jobs:
           set sftp:auto-confirm yes
           set net:max-retries 2
           set net:timeout 30
-          mirror --reverse --verbose --parallel=2 ./dist/ /public_html/growHub/
+          mirror --reverse --delete --verbose --parallel=2 ./dist/ /public_html/growHub/
           bye
           LFTP_COMMANDS
