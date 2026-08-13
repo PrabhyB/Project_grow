@@ -92,9 +92,28 @@ export default function DashboardPage() {
     auth.currentUser?.email?.split("@")[0] ||
     "Gardener";
 
-    const attentionItems = buildAttentionItems(
+    const todayWeather = forecast?.daily[0];
+const tomorrowWeather = forecast?.daily[1];
+
+const expectedRainMm =
+  (todayWeather?.precipitationMm ?? 0) +
+  (tomorrowWeather?.precipitationMm ?? 0);
+
+const attentionItems = buildAttentionItems(
   dashboardPlants,
+  {
+    temperatureC: forecast?.current.temperatureC,
+
+    sunlightHours:
+      todayWeather?.sunshineDurationSeconds !== undefined
+        ? todayWeather.sunshineDurationSeconds / 3600
+        : undefined,
+
+    expectedRainMm,
+  },
 );
+
+const attentionCount = attentionItems.length;
   async function handleLogout() {
     await logoutUser();
     navigate("/login");
@@ -153,7 +172,11 @@ export default function DashboardPage() {
             aria-label="Notifications"
           >
             🔔
-            <span className="notification-count">2</span>
+            {attentionCount > 0 && (
+  <span className="notification-count">
+    {attentionCount}
+  </span>
+)}
           </button>
 
           <button className="profile-button" type="button">
@@ -181,8 +204,19 @@ export default function DashboardPage() {
             <h1>Good morning, {userName} 🌱</h1>
 
             <p className="daily-summary">
-              You have <strong>3 tasks</strong> waiting today.
-            </p>
+  {attentionCount === 0 ? (
+    <>Your garden has no urgent tasks today.</>
+  ) : (
+    <>
+      You have{" "}
+      <strong>
+        {attentionCount}{" "}
+        {attentionCount === 1 ? "task" : "tasks"}
+      </strong>{" "}
+      waiting today.
+    </>
+  )}
+</p>
 
             <p className="garden-highlight">
               Your tomatoes are nearly ready to harvest. 🍅
@@ -203,14 +237,13 @@ export default function DashboardPage() {
 
 
         <AttentionSection
-          items={attentionItems}
-          onAction={(item) => {
-            console.log("Selected attention item:", item);
-          }}
-          onViewAll={() => {
-            console.log("View all attention items");
-          }}
-        />
+  items={attentionItems}
+  onAction={(item) => {
+    navigate(
+      `/garden/${item.gardenId}/plant/${item.plantId}`,
+    );
+  }}
+/>
         <PropertyMap
   zones={gardenZones}
 
