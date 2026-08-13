@@ -4,6 +4,8 @@ export type AttentionLevel = "urgent" | "warning" | "weather";
 
 export type AttentionItem = {
   id: string;
+  plantId: string;
+  gardenId: string;
   plantName: string;
   gardenName: string;
   title: string;
@@ -37,15 +39,15 @@ export default function AttentionSection({
           )}
         </div>
 
-        {hasAttentionItems && (
-          <button
-            className="attention-view-all"
-            type="button"
-            onClick={onViewAll}
-          >
-            View all →
-          </button>
-        )}
+        {hasAttentionItems && onViewAll && (
+  <button
+    className="attention-view-all"
+    type="button"
+    onClick={onViewAll}
+  >
+    View all →
+  </button>
+)}
       </div>
 
       {!hasAttentionItems ? (
