@@ -50,13 +50,13 @@
 .attention-card-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .plant-alert-card,
 .other-plants-card,
 .all-clear-card {
-  min-height: 210px;
+  min-height: 145px;
   border: 1px solid #e0e6de;
   border-radius: 21px;
   background: white;
@@ -66,9 +66,14 @@
 .plant-alert-card {
   position: relative;
   display: flex;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
   overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .plant-alert-card {
@@ -82,6 +87,10 @@
 .plant-alert-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 13px 30px rgb(42 70 49 / 13%);
+}
+
+.plant-alert-card:active {
+  transform: translateY(0);
 }
 
 .plant-alert-card:focus-visible {
@@ -103,13 +112,13 @@
 
 .plant-alert-icon {
   display: grid;
-  width: 50px;
-  height: 50px;
-  flex: 0 0 50px;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #eef4ec;
-  font-size: 1.7rem;
+  font-size: 1.55rem;
 }
 
 .plant-alert-content {
@@ -128,27 +137,26 @@
 }
 
 .plant-alert-content h3 {
-  margin: 7px 0 3px;
+  margin: 4px 0 2px;
   color: #173f2a;
   font-size: 1.16rem;
 }
 
 .plant-alert-location {
-  margin: 0 0 8px;
+  margin: 0 0 5px;
   color: #2d7945;
   font-size: 0.91rem;
 }
 
 .plant-alert-description {
-  margin: 0 0 14px;
+  margin: 0 0 8px;
   color: #68736c;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .plant-alert-action {
   width: 100%;
-  margin-top: auto;
-  padding-top: 12px;
+  margin-top: 10px;
   color: currentColor;
   font-weight: 800;
 }
@@ -169,8 +177,8 @@
 .all-clear-card {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 23px;
+  gap: 15px;
+  padding: 18px;
   background: linear-gradient(135deg, #edf7e8, #fbfcf9);
 }
 
