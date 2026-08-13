@@ -62,10 +62,19 @@ export default function AttentionSection({
       ) : (
         <div className="attention-card-grid">
           {items.map((item) => (
-            <article
-              className={`plant-alert-card alert-${item.level}`}
-              key={item.id}
-            >
+  <article
+    className={`plant-alert-card alert-${item.level}`}
+    key={item.id}
+    role="link"
+    tabIndex={0}
+    onClick={() => onAction?.(item)}
+    onKeyDown={(event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onAction?.(item);
+      }
+    }}
+  >
               <div className="plant-alert-icon">{item.icon}</div>
 
               <div className="plant-alert-content">
@@ -79,12 +88,9 @@ export default function AttentionSection({
                   {item.description}
                 </p>
 
-                <button
-                  type="button"
-                  onClick={() => onAction?.(item)}
-                >
-                  {item.actionLabel}
-                </button>
+                <span className="plant-alert-action">
+  {item.actionLabel} →
+</span>
               </div>
             </article>
           ))}
