@@ -116,6 +116,33 @@ const careAssessment = assessPlantCare(plant, {
       : 7,
 });
 
+const primaryConcern = [
+  {
+    label: "Watering",
+    icon: "💧",
+    score: careAssessment.water.score,
+    message: careAssessment.water.message,
+  },
+  {
+    label: "Sunlight",
+    icon: "☀️",
+    score: careAssessment.sunlight.score,
+    message: careAssessment.sunlight.message,
+  },
+  {
+    label: "Temperature",
+    icon: "🌡️",
+    score: careAssessment.temperature.score,
+    message: careAssessment.temperature.message,
+  },
+  {
+    label: "Plant health",
+    icon: "🌱",
+    score: careAssessment.growth.score,
+    message: careAssessment.growth.message,
+  },
+].sort((a, b) => a.score - b.score)[0];
+
   return (
     <div className="plant-page">
       <header className="plant-page-header">
@@ -173,21 +200,25 @@ const careAssessment = assessPlantCare(plant, {
         <PlantHealthCard assessment={careAssessment} />
 
         <section className="plant-care-card">
-          <div>
-            <h2>Care recommendation</h2>
-            <p>
-              Weather-aware watering advice will appear here once we connect
-              the forecast and plant-care database.
-            </p>
-          </div>
+  <div>
+    <h2>
+      {primaryConcern.icon} {primaryConcern.label} recommendation
+    </h2>
 
-          <button
-            type="button"
-            onClick={() => setIsRecordingWatering(true)}
-          >
-            Record watering
-          </button>
-        </section>
+    <p>
+      <strong>{careAssessment.nextAction}</strong>
+    </p>
+
+    <p>{primaryConcern.message}</p>
+  </div>
+
+  <button
+    type="button"
+    onClick={() => setIsRecordingWatering(true)}
+  >
+    Record watering
+  </button>
+</section>
 
         <section className="watering-history-card">
           <div className="watering-history-heading">
