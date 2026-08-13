@@ -1,13 +1,22 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 
 import RecordWateringForm from "../components/RecordWateringForm";
 
 import {
+  addPlantObservation,
   getGardenPlant,
+  subscribeToPlantObservations,
   subscribeToWateringHistory,
   type GardenPlant,
+  type NewPlantObservation,
+  type PlantObservation,
+  type PlantObservationCategory,
   type WateringRecord,
 } from "../services/plantService";
 
@@ -17,11 +26,61 @@ import PlantHealthCard from "../components/PlantHealthCard";
 import { assessPlantCare } from "../services/careEngine";
 import { useWeather } from "../hooks/useWeather";
 
+function getTodayDate() {
+  const now = new Date();
+
+  const localDate = new Date(
+    now.getTime() -
+      now.getTimezoneOffset() * 60_000,
+  );
+
+  return localDate.toISOString().split("T")[0];
+}
+
+function getObservationIcon(
+  category: PlantObservationCategory,
+) {
+  switch (category) {
+    case "Growth":
+      return "🌱";
+    case "Pest":
+      return "🐛";
+    case "Disease":
+      return "🦠";
+    case "Feeding":
+      return "🧪";
+    case "Pruning":
+      return "✂️";
+    case "Harvest":
+      return "🧺";
+    default:
+      return "📝";
+  }
+}
+
 export default function PlantPage() {
   const { gardenId, plantId } = useParams();
   const { forecast } = useWeather();
   const [plant, setPlant] = useState<GardenPlant | null>(null);
   const [wateringHistory, setWateringHistory] = useState<WateringRecord[]>([]);
+  const [observations, setObservations] =
+  useState<PlantObservation[]>([]);
+
+const [isAddingObservation, setIsAddingObservation] =
+  useState(false);
+
+const [isSavingObservation, setIsSavingObservation] =
+  useState(false);
+
+const [observationError, setObservationError] =
+  useState("");
+
+const [newObservation, setNewObservation] =
+  useState<NewPlantObservation>({
+    observedAt: getTodayDate(),
+    category: "General",
+    note: "",
+  });
   const [isRecordingWatering, setIsRecordingWatering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,6 +125,64 @@ export default function PlantPage() {
 
     return unsubscribe;
   }, [gardenId, plantId]);
+
+  useEffect(() => {
+  if (!gardenId || !plantId) {
+    return;
+  }
+
+  const unsubscribe =
+    subscribeToPlantObservations(
+      gardenId,
+      plantId,
+      setObservations,
+      (observationError) => {
+        console.error(
+          "Plant observation error:",
+          observationError,
+        );
+      },
+    );
+
+  return unsubscribe;
+}, [gardenId, plantId]);
+
+async function handleObservationSubmit(
+  event: FormEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  if (!gardenId || !plantId) {
+    return;
+  }
+
+  setIsSavingObservation(true);
+  setObservationError("");
+
+  try {
+    await addPlantObservation(
+      gardenId,
+      plantId,
+      newObservation,
+    );
+
+    setNewObservation({
+      observedAt: getTodayDate(),
+      category: "General",
+      note: "",
+    });
+
+    setIsAddingObservation(false);
+  } catch (caughtError) {
+    setObservationError(
+      caughtError instanceof Error
+        ? caughtError.message
+        : "The observation could not be saved.",
+    );
+  } finally {
+    setIsSavingObservation(false);
+  }
+}
 
   if (!gardenId || !plantId) {
     return <Navigate to="/dashboard" replace />;
@@ -252,13 +369,154 @@ const primaryConcern = [
         </section>
 
         <section className="plant-notes-card">
-          <div>
-            <h2>Notes and progress</h2>
-            <button type="button">＋ Add note</button>
-          </div>
+  <div>
+    <div>
+      <h2>Notes and observations</h2>
+      <small>
+        {observations.length}{" "}
+        {observations.length === 1
+          ? "entry"
+          : "entries"}
+      </small>
+    </div>
 
-          <p>No notes have been recorded for this plant yet.</p>
-        </section>
+    <button
+      type="button"
+      onClick={() =>
+        setIsAddingObservation(
+          (current) => !current,
+        )
+      }
+    >
+      {isAddingObservation
+        ? "Cancel"
+        : "＋ Add observation"}
+    </button>
+  </div>
+
+  {isAddingObservation && (
+    <form
+      className="observation-form"
+      onSubmit={handleObservationSubmit}
+    >
+      <div className="observation-form-row">
+        <label>
+          Date
+          <input
+            required
+            type="date"
+            value={newObservation.observedAt}
+            onChange={(event) =>
+              setNewObservation((current) => ({
+                ...current,
+                observedAt: event.target.value,
+              }))
+            }
+          />
+        </label>
+
+        <label>
+          Observation type
+          <select
+            value={newObservation.category}
+            onChange={(event) =>
+              setNewObservation((current) => ({
+                ...current,
+                category:
+                  event.target
+                    .value as PlantObservationCategory,
+              }))
+            }
+          >
+            <option value="General">
+              General note
+            </option>
+            <option value="Growth">Growth</option>
+            <option value="Pest">Pest</option>
+            <option value="Disease">
+              Disease
+            </option>
+            <option value="Feeding">
+              Feeding
+            </option>
+            <option value="Pruning">
+              Pruning
+            </option>
+            <option value="Harvest">
+              Harvest
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        What did you notice?
+        <textarea
+          required
+          rows={4}
+          value={newObservation.note}
+          placeholder="For example: First flowers appeared today."
+          onChange={(event) =>
+            setNewObservation((current) => ({
+              ...current,
+              note: event.target.value,
+            }))
+          }
+        />
+      </label>
+
+      {observationError && (
+        <p className="observation-error">
+          {observationError}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={isSavingObservation}
+      >
+        {isSavingObservation
+          ? "Saving…"
+          : "Save observation"}
+      </button>
+    </form>
+  )}
+
+  {observations.length === 0 ? (
+    <p>
+      No notes or observations have been recorded
+      for this plant yet.
+    </p>
+  ) : (
+    <ul className="observation-list">
+      {observations.map((observation) => (
+        <li
+          className="observation-item"
+          key={observation.id}
+        >
+          <span className="observation-icon">
+            {getObservationIcon(
+              observation.category,
+            )}
+          </span>
+
+          <div>
+            <div className="observation-heading">
+              <strong>
+                {observation.category}
+              </strong>
+              <span>
+                {observation.observedAt}
+              </span>
+            </div>
+
+            <p>{observation.note}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
+</section>
       </main>
 
       {isRecordingWatering && (

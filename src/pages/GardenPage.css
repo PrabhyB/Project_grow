@@ -145,6 +145,21 @@
   background: #fff9f5;
 }
 
+.garden-plant-card.plant-healthy {
+  border-color: #dbe8d7;
+  background: #fbfdfa;
+}
+
+.plant-card-content .plant-status-good {
+  color: #37804c;
+  font-weight: 750;
+}
+
+.plant-care-message {
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
 .plant-card-icon {
   display: grid;
   width: 60px;

@@ -216,3 +216,94 @@ export function subscribeToWateringHistory(
     },
   );
 }
+
+export type PlantObservationCategory =
+  | "General"
+  | "Growth"
+  | "Pest"
+  | "Disease"
+  | "Feeding"
+  | "Pruning"
+  | "Harvest";
+
+export type PlantObservation = {
+  id: string;
+  observedAt: string;
+  category: PlantObservationCategory;
+  note: string;
+  createdAt?: unknown;
+};
+
+export type NewPlantObservation = Omit<
+  PlantObservation,
+  "id" | "createdAt"
+>;
+
+function getObservationCollection(
+  gardenId: string,
+  plantId: string,
+) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error(
+      "You must be logged in to access plant observations.",
+    );
+  }
+
+  return collection(
+    db,
+    "users",
+    user.uid,
+    "gardens",
+    gardenId,
+    "plants",
+    plantId,
+    "observations",
+  );
+}
+
+export async function addPlantObservation(
+  gardenId: string,
+  plantId: string,
+  observation: NewPlantObservation,
+) {
+  const observationCollection =
+    getObservationCollection(gardenId, plantId);
+
+  await addDoc(observationCollection, {
+    ...observation,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToPlantObservations(
+  gardenId: string,
+  plantId: string,
+  onObservationsChanged: (
+    observations: PlantObservation[],
+  ) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const observationQuery = query(
+    getObservationCollection(gardenId, plantId),
+    orderBy("createdAt", "desc"),
+  );
+
+  return onSnapshot(
+    observationQuery,
+    (snapshot) => {
+      const observations = snapshot.docs.map(
+        (observationDocument) => ({
+          id: observationDocument.id,
+          ...observationDocument.data(),
+        }),
+      ) as PlantObservation[];
+
+      onObservationsChanged(observations);
+    },
+    (error) => {
+      onError?.(error);
+    },
+  );
+}

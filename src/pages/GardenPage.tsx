@@ -147,6 +147,50 @@ export default function GardenPage() {
     }),
   );
 
+  const plantCareSummaries = plants.map((plant, index) => {
+  const assessment = careAssessments[index];
+
+  const concerns = [
+    {
+      label: "Watering",
+      icon: "💧",
+      score: assessment.water.score,
+      rating: assessment.water.rating,
+      message: assessment.water.message,
+    },
+    {
+      label: "Sunlight",
+      icon: "☀️",
+      score: assessment.sunlight.score,
+      rating: assessment.sunlight.rating,
+      message: assessment.sunlight.message,
+    },
+    {
+      label: "Temperature",
+      icon: "🌡️",
+      score: assessment.temperature.score,
+      rating: assessment.temperature.rating,
+      message: assessment.temperature.message,
+    },
+    {
+      label: "Plant health",
+      icon: "🌱",
+      score: assessment.growth.score,
+      rating: assessment.growth.rating,
+      message: assessment.growth.message,
+    },
+  ].sort((a, b) => a.score - b.score);
+
+  const primaryConcern = concerns[0];
+
+  return {
+    plant,
+    assessment,
+    primaryConcern,
+    needsAttention: primaryConcern.score < 75,
+  };
+});
+
   const waterConcernCount = careAssessments.filter(
     (assessment) => assessment.water.score < 75,
   ).length;
@@ -318,50 +362,65 @@ export default function GardenPage() {
               </div>
             ) : (
               <div className="garden-plant-grid">
-                {plants.map((plant) => (
-                  <button
-                    className={`garden-plant-card ${
-                      plant.status === "Healthy"
-                        ? ""
-                        : "plant-needs-attention"
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      navigate(
-                        `/garden/${garden.id}/plant/${plant.id}`,
-                      );
-                    }}
-                    key={plant.id}
-                  >
-                    <span className="plant-card-icon">
-                      {plant.icon}
-                    </span>
+                {plantCareSummaries.map(
+  ({
+    plant,
+    assessment,
+    primaryConcern,
+    needsAttention,
+  }) => (
+    <button
+      className={`garden-plant-card ${
+        needsAttention
+          ? "plant-needs-attention"
+          : "plant-healthy"
+      }`}
+      type="button"
+      onClick={() => {
+        navigate(
+          `/garden/${garden.id}/plant/${plant.id}`,
+        );
+      }}
+      key={plant.id}
+    >
+      <span className="plant-card-icon">
+        {plant.icon}
+      </span>
 
-                    <span className="plant-card-content">
-                      <strong>{plant.name}</strong>
+      <span className="plant-card-content">
+        <strong>{plant.name}</strong>
 
-                      {plant.variety && (
-                        <small>{plant.variety}</small>
-                      )}
+        {plant.variety && (
+          <small>{plant.variety}</small>
+        )}
 
-                      <span>{plant.stage}</span>
+        <span>{plant.stage}</span>
 
-                      <span
-                        className={
-                          plant.status === "Healthy"
-                            ? ""
-                            : "plant-status-warning"
-                        }
-                      >
-                        {plant.status}
-                      </span>
-                    </span>
+        {needsAttention ? (
+          <>
+            <span className="plant-status-warning">
+  {primaryConcern.icon}{" "}
+  {primaryConcern.label} ·{" "}
+  {primaryConcern.rating}
+</span>
 
-                    <span className="plant-card-arrow">
-                      ›
-                    </span>
-                  </button>
-                ))}
+            <small className="plant-care-message">
+              {primaryConcern.message}
+            </small>
+          </>
+        ) : (
+          <span className="plant-status-good">
+            ✓ {assessment.overallRating}
+          </span>
+        )}
+      </span>
+
+      <span className="plant-card-arrow">
+        ›
+      </span>
+    </button>
+  ),
+)}
               </div>
             )}
           </div>
