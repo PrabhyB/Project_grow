@@ -119,6 +119,22 @@ const attentionCount = attentionItems.length;
     navigate("/login");
   }
 
+  const liveGardenZones = gardenZones.map((garden) => {
+  const gardenPlants = dashboardPlants.filter(
+    (plant) => plant.gardenId === garden.id,
+  );
+
+  const gardenAlerts = attentionItems.filter(
+    (item) => item.gardenId === garden.id,
+  );
+
+  return {
+    ...garden,
+    plantCount: gardenPlants.length,
+    alerts: gardenAlerts.length,
+  };
+});
+
   useEffect(() => {
   const plantsByGarden: Record<string, GardenPlant[]> = {};
 
@@ -245,8 +261,7 @@ const attentionCount = attentionItems.length;
   }}
 />
         <PropertyMap
-  zones={gardenZones}
-
+  zones={liveGardenZones}
   selectedZoneId={selectedGarden?.id}
   onSelectZone={(zone) => {
     setSelectedGarden(zone);
