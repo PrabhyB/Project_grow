@@ -150,3 +150,112 @@
   pointer-events: none;
 }
 }
+
+.property-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.property-heading .add-garden-area-button {
+  padding: 9px 13px;
+  color: white;
+  border-radius: 10px;
+  background: #347f45;
+}
+
+.property-heading .finish-garden-edit-button {
+  padding: 9px 13px;
+  color: white;
+  border-radius: 10px;
+  background: #173f2a;
+}
+
+.property-edit-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  color: #245b36;
+  border: 1px solid #c9dec4;
+  border-radius: 14px;
+  background: #edf7e8;
+}
+
+.property-edit-banner > span {
+  font-size: 1.6rem;
+}
+
+.property-edit-banner strong {
+  display: block;
+}
+
+.property-edit-banner p {
+  margin: 2px 0 0;
+  color: #68746c;
+  font-size: 0.9rem;
+}
+
+.property-map-editing {
+  touch-action: none;
+}
+
+.garden-zone-group.zone-editing {
+  cursor: grab;
+}
+
+.garden-zone-group.zone-editing
+  .garden-zone-hitbox {
+  stroke-dasharray: 10 7;
+}
+
+.garden-zone-group.zone-dragging {
+  cursor: grabbing;
+}
+
+.garden-zone-group.zone-dragging
+  .garden-zone-hitbox {
+  stroke: #ffe267;
+  stroke-width: 8;
+  filter:
+    drop-shadow(
+      0 10px 12px
+      rgb(20 55 30 / 35%)
+    );
+}
+
+.garden-drag-symbol {
+  fill: white;
+  font-size: 22px;
+  font-weight: 900;
+  pointer-events: none;
+  user-select: none;
+}
+
+.garden-resize-handle {
+  fill: #ffffff;
+  stroke: #173f2a;
+  stroke-width: 4;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.garden-resize-symbol {
+  fill: #173f2a;
+  font-size: 15px;
+  font-weight: 900;
+  pointer-events: none;
+  user-select: none;
+}
+
+.garden-zone-group.zone-resizing
+  .garden-zone-hitbox {
+  stroke: #ffe267;
+  stroke-width: 8;
+  filter:
+    drop-shadow(
+      0 10px 12px
+      rgb(20 55 30 / 35%)
+    );
+}

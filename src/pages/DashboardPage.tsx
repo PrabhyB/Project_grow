@@ -18,58 +18,20 @@ import {
 import {
   buildAttentionItems,
 } from "../services/dashboardAttentionService";
+import {
+  createGardenArea,
+  ensureDefaultGardens,
+  subscribeToGardens,
+  updateGardenArea,
+  type GardenArea,
+} from "../services/gardenService";
 
 type DashboardPlant = GardenPlant & {
   gardenId: string;
   gardenName: string;
 };
 
-const gardenZones: GardenZone[] = [
-  {
-    id: "front-garden",
-    name: "Front Garden",
-    plantCount: 8,
-    x: 55,
-    y: 150,
-    width: 175,
-    height: 145,
-    type: "garden",
-    alerts: 0,
-  },
-  {
-    id: "back-garden",
-    name: "Back Garden",
-    plantCount: 24,
-    x: 440,
-    y: 255,
-    width: 245,
-    height: 210,
-    type: "garden",
-    alerts: 2,
-  },
-  {
-    id: "vegetable-patch",
-    name: "Vegetable Patch",
-    plantCount: 16,
-    x: 720,
-    y: 170,
-    width: 250,
-    height: 275,
-    type: "vegetable",
-    alerts: 1,
-  },
-  {
-    id: "herb-garden",
-    name: "Herb Garden",
-    plantCount: 9,
-    x: 680,
-    y: 450,
-    width: 150,
-    height: 125,
-    type: "herb",
-    alerts: 0,
-  },
-];
+
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -83,6 +45,10 @@ export default function DashboardPage() {
   const [dashboardPlants, setDashboardPlants] = useState<
   DashboardPlant[]
 >([]);
+
+const [gardens, setGardens] = useState<GardenArea[]>([]);
+const [gardensAreReady, setGardensAreReady] =
+  useState(false);
 
   const [selectedGarden, setSelectedGarden] =
   useState<GardenZone | null>(null);
@@ -119,44 +85,106 @@ const attentionCount = attentionItems.length;
     navigate("/login");
   }
 
-  const liveGardenZones = gardenZones.map((garden) => {
-  const gardenPlants = dashboardPlants.filter(
-    (plant) => plant.gardenId === garden.id,
-  );
+  const liveGardenZones: GardenZone[] = gardens.map(
+  (garden) => {
+    const gardenPlants = dashboardPlants.filter(
+      (plant) => plant.gardenId === garden.id,
+    );
 
-  const gardenAlerts = attentionItems.filter(
-    (item) => item.gardenId === garden.id,
-  );
+    const gardenAlerts = attentionItems.filter(
+      (item) => item.gardenId === garden.id,
+    );
 
-  return {
-    ...garden,
-    plantCount: gardenPlants.length,
-    alerts: gardenAlerts.length,
+    return {
+      id: garden.id,
+      name: garden.name,
+      type: garden.type,
+      x: garden.x,
+      y: garden.y,
+      width: garden.width,
+      height: garden.height,
+      plantCount: gardenPlants.length,
+      alerts: gardenAlerts.length,
+    };
+  },
+);
+
+useEffect(() => {
+  let unsubscribe: (() => void) | undefined;
+  let isCancelled = false;
+
+  async function initialiseGardens() {
+    try {
+      await ensureDefaultGardens();
+
+      if (isCancelled) {
+        return;
+      }
+
+      unsubscribe = subscribeToGardens(
+        (loadedGardens) => {
+          setGardens(loadedGardens);
+          setGardensAreReady(true);
+        },
+        (error) => {
+          console.error(
+            "Unable to load gardens:",
+            error,
+          );
+          setGardensAreReady(true);
+        },
+      );
+    } catch (error) {
+      console.error(
+        "Unable to initialise gardens:",
+        error,
+      );
+      setGardensAreReady(true);
+    }
+  }
+
+  void initialiseGardens();
+
+  return () => {
+    isCancelled = true;
+    unsubscribe?.();
   };
-});
+}, []);
 
-  useEffect(() => {
-  const plantsByGarden: Record<string, GardenPlant[]> = {};
+ useEffect(() => {
+  if (!gardensAreReady) {
+    return;
+  }
 
-  const unsubscribes = gardenZones.map((garden) =>
+  if (gardens.length === 0) {
+    setDashboardPlants([]);
+    return;
+  }
+
+  const plantsByGarden: Record<
+    string,
+    GardenPlant[]
+  > = {};
+
+  const unsubscribes = gardens.map((garden) =>
     subscribeToGardenPlants(
       garden.id,
       (loadedPlants) => {
+        plantsByGarden[garden.id] = loadedPlants;
 
-  plantsByGarden[garden.id] = loadedPlants;
+        const combinedPlants = gardens.flatMap(
+          (gardenArea) =>
+            (
+              plantsByGarden[gardenArea.id] ?? []
+            ).map((plant) => ({
+              ...plant,
+              gardenId: gardenArea.id,
+              gardenName: gardenArea.name,
+            })),
+        );
 
-  const combinedPlants = gardenZones.flatMap(
-    (gardenZone) =>
-      (plantsByGarden[gardenZone.id] ?? []).map((plant) => ({
-        ...plant,
-        gardenId: gardenZone.id,
-        gardenName: gardenZone.name,
-      })),
-  );
-
-
-  setDashboardPlants(combinedPlants);
-},
+        setDashboardPlants(combinedPlants);
+      },
       (error) => {
         console.error(
           `Unable to load plants from ${garden.name}:`,
@@ -171,7 +199,68 @@ const attentionCount = attentionItems.length;
       unsubscribe();
     });
   };
-}, []);
+}, [gardens, gardensAreReady]);
+
+async function handleCreateGardenArea() {
+  try {
+    const areaNumber = gardens.length + 1;
+
+    const offset = (gardens.length * 30) % 180;
+
+    await createGardenArea({
+      name: `Growing Area ${areaNumber}`,
+      description: "Custom growing area.",
+      type: "garden",
+
+      x: 500 + offset,
+      y: 360 + offset / 2,
+
+      width: 180,
+      height: 130,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to create growing area:",
+      error,
+    );
+  }
+}
+
+async function handleMoveGardenArea(
+  gardenId: string,
+  x: number,
+  y: number,
+) {
+  try {
+    await updateGardenArea(gardenId, {
+      x,
+      y,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save garden position:",
+      error,
+    );
+  }
+}
+
+async function handleResizeGardenArea(
+  gardenId: string,
+  width: number,
+  height: number,
+) {
+  try {
+    await updateGardenArea(gardenId, {
+      width,
+      height,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save garden size:",
+      error,
+    );
+  }
+}
 
   return (
     <div className="dashboard-page">
@@ -266,6 +355,9 @@ const attentionCount = attentionItems.length;
   onSelectZone={(zone) => {
     setSelectedGarden(zone);
   }}
+  onCreateZone={handleCreateGardenArea}
+  onMoveZone={handleMoveGardenArea}
+  onResizeZone={handleResizeGardenArea}
 />
       </main>
       {selectedGarden && (

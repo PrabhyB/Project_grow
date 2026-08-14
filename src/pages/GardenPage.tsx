@@ -6,7 +6,10 @@ import {
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { getGardenById } from "../data/garden";
+import {
+  subscribeToGarden,
+  type GardenArea,
+} from "../services/gardenService";
 import AddPlantForm from "../components/AddPlantForm";
 import { useWeather } from "../hooks/useWeather";
 import { assessPlantCare } from "../services/careEngine";
@@ -63,11 +66,16 @@ export default function GardenPage() {
   const { gardenId } = useParams();
   const navigate = useNavigate();
 
-  const garden = gardenId
-    ? getGardenById(gardenId)
-    : undefined;
-
   const { forecast } = useWeather();
+
+ const [garden, setGarden] =
+  useState<GardenArea | null>(null);
+
+const [isLoadingGarden, setIsLoadingGarden] =
+  useState(true);
+
+const [gardenError, setGardenError] =
+  useState("");
 
   const [plants, setPlants] = useState<GardenPlant[]>(
     [],
@@ -77,6 +85,30 @@ export default function GardenPage() {
   const [isLoadingPlants, setIsLoadingPlants] =
     useState(true);
   const [plantError, setPlantError] = useState("");
+
+  useEffect(() => {
+  if (!gardenId) {
+    setIsLoadingGarden(false);
+    return;
+  }
+
+  setIsLoadingGarden(true);
+  setGardenError("");
+
+  const unsubscribe = subscribeToGarden(
+    gardenId,
+    (updatedGarden) => {
+      setGarden(updatedGarden);
+      setIsLoadingGarden(false);
+    },
+    (error) => {
+      setGardenError(error.message);
+      setIsLoadingGarden(false);
+    },
+  );
+
+  return unsubscribe;
+}, [gardenId]);
 
   useEffect(() => {
     if (!gardenId) {
@@ -101,9 +133,37 @@ export default function GardenPage() {
     return unsubscribe;
   }, [gardenId]);
 
-  if (!garden) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (!gardenId) {
+  return <Navigate to="/dashboard" replace />;
+}
+
+if (isLoadingGarden) {
+  return (
+    <div className="garden-page">
+      <p>Loading garden…</p>
+    </div>
+  );
+}
+
+if (gardenError) {
+  return (
+    <div className="garden-page">
+      <Link to="/dashboard">
+        ← Dashboard
+      </Link>
+
+      <p>
+        The garden could not be loaded:
+        {" "}
+        {gardenError}
+      </p>
+    </div>
+  );
+}
+
+if (!garden) {
+  return <Navigate to="/dashboard" replace />;
+}
 
   const todayWeather = forecast?.daily[0];
   const tomorrowWeather = forecast?.daily[1];
@@ -146,6 +206,50 @@ export default function GardenPage() {
       ),
     }),
   );
+
+  const plantCareSummaries = plants.map((plant, index) => {
+  const assessment = careAssessments[index];
+
+  const concerns = [
+    {
+      label: "Watering",
+      icon: "💧",
+      score: assessment.water.score,
+      rating: assessment.water.rating,
+      message: assessment.water.message,
+    },
+    {
+      label: "Sunlight",
+      icon: "☀️",
+      score: assessment.sunlight.score,
+      rating: assessment.sunlight.rating,
+      message: assessment.sunlight.message,
+    },
+    {
+      label: "Temperature",
+      icon: "🌡️",
+      score: assessment.temperature.score,
+      rating: assessment.temperature.rating,
+      message: assessment.temperature.message,
+    },
+    {
+      label: "Plant health",
+      icon: "🌱",
+      score: assessment.growth.score,
+      rating: assessment.growth.rating,
+      message: assessment.growth.message,
+    },
+  ].sort((a, b) => a.score - b.score);
+
+  const primaryConcern = concerns[0];
+
+  return {
+    plant,
+    assessment,
+    primaryConcern,
+    needsAttention: primaryConcern.score < 75,
+  };
+});
 
   const waterConcernCount = careAssessments.filter(
     (assessment) => assessment.water.score < 75,
@@ -318,50 +422,65 @@ export default function GardenPage() {
               </div>
             ) : (
               <div className="garden-plant-grid">
-                {plants.map((plant) => (
-                  <button
-                    className={`garden-plant-card ${
-                      plant.status === "Healthy"
-                        ? ""
-                        : "plant-needs-attention"
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      navigate(
-                        `/garden/${garden.id}/plant/${plant.id}`,
-                      );
-                    }}
-                    key={plant.id}
-                  >
-                    <span className="plant-card-icon">
-                      {plant.icon}
-                    </span>
+                {plantCareSummaries.map(
+  ({
+    plant,
+    assessment,
+    primaryConcern,
+    needsAttention,
+  }) => (
+    <button
+      className={`garden-plant-card ${
+        needsAttention
+          ? "plant-needs-attention"
+          : "plant-healthy"
+      }`}
+      type="button"
+      onClick={() => {
+        navigate(
+          `/garden/${garden.id}/plant/${plant.id}`,
+        );
+      }}
+      key={plant.id}
+    >
+      <span className="plant-card-icon">
+        {plant.icon}
+      </span>
 
-                    <span className="plant-card-content">
-                      <strong>{plant.name}</strong>
+      <span className="plant-card-content">
+        <strong>{plant.name}</strong>
 
-                      {plant.variety && (
-                        <small>{plant.variety}</small>
-                      )}
+        {plant.variety && (
+          <small>{plant.variety}</small>
+        )}
 
-                      <span>{plant.stage}</span>
+        <span>{plant.stage}</span>
 
-                      <span
-                        className={
-                          plant.status === "Healthy"
-                            ? ""
-                            : "plant-status-warning"
-                        }
-                      >
-                        {plant.status}
-                      </span>
-                    </span>
+        {needsAttention ? (
+          <>
+            <span className="plant-status-warning">
+  {primaryConcern.icon}{" "}
+  {primaryConcern.label} ·{" "}
+  {primaryConcern.rating}
+</span>
 
-                    <span className="plant-card-arrow">
-                      ›
-                    </span>
-                  </button>
-                ))}
+            <small className="plant-care-message">
+              {primaryConcern.message}
+            </small>
+          </>
+        ) : (
+          <span className="plant-status-good">
+            ✓ {assessment.overallRating}
+          </span>
+        )}
+      </span>
+
+      <span className="plant-card-arrow">
+        ›
+      </span>
+    </button>
+  ),
+)}
               </div>
             )}
           </div>
