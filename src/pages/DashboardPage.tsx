@@ -19,8 +19,10 @@ import {
   buildAttentionItems,
 } from "../services/dashboardAttentionService";
 import {
+  createGardenArea,
   ensureDefaultGardens,
   subscribeToGardens,
+  updateGardenArea,
   type GardenArea,
 } from "../services/gardenService";
 
@@ -199,6 +201,67 @@ useEffect(() => {
   };
 }, [gardens, gardensAreReady]);
 
+async function handleCreateGardenArea() {
+  try {
+    const areaNumber = gardens.length + 1;
+
+    const offset = (gardens.length * 30) % 180;
+
+    await createGardenArea({
+      name: `Growing Area ${areaNumber}`,
+      description: "Custom growing area.",
+      type: "garden",
+
+      x: 500 + offset,
+      y: 360 + offset / 2,
+
+      width: 180,
+      height: 130,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to create growing area:",
+      error,
+    );
+  }
+}
+
+async function handleMoveGardenArea(
+  gardenId: string,
+  x: number,
+  y: number,
+) {
+  try {
+    await updateGardenArea(gardenId, {
+      x,
+      y,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save garden position:",
+      error,
+    );
+  }
+}
+
+async function handleResizeGardenArea(
+  gardenId: string,
+  width: number,
+  height: number,
+) {
+  try {
+    await updateGardenArea(gardenId, {
+      width,
+      height,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save garden size:",
+      error,
+    );
+  }
+}
+
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
@@ -292,6 +355,9 @@ useEffect(() => {
   onSelectZone={(zone) => {
     setSelectedGarden(zone);
   }}
+  onCreateZone={handleCreateGardenArea}
+  onMoveZone={handleMoveGardenArea}
+  onResizeZone={handleResizeGardenArea}
 />
       </main>
       {selectedGarden && (

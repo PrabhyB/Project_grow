@@ -1,5 +1,9 @@
 import "./PropertyMap.css";
-import { useState } from "react";
+import {
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import SunlightControls from "./SunlightControls";
 
 export type GardenZone = {
@@ -18,15 +22,58 @@ type PropertyMapProps = {
   zones: GardenZone[];
   selectedZoneId?: string;
   onSelectZone: (zone: GardenZone) => void;
+
+  onCreateZone?: () => void | Promise<void>;
+
+  onMoveZone?: (
+  gardenId: string,
+  x: number,
+  y: number,
+) => void | Promise<void>;
+
+onResizeZone?: (
+  gardenId: string,
+  width: number,
+  height: number,
+) => void | Promise<void>;
 };
 
 export default function PropertyMap({
   zones,
   selectedZoneId,
   onSelectZone,
+  onCreateZone,
+  onMoveZone,
+  onResizeZone,
 }: PropertyMapProps) {
   const [sunlightEnabled, setSunlightEnabled] = useState(false);
-const [timeMinutes, setTimeMinutes] = useState(720);
+const [isEditing, setIsEditing] =
+  useState(false);
+  const [draggedZoneId, setDraggedZoneId] =
+  useState<string | null>(null);
+
+const [dragPreview, setDragPreview] = useState<{
+  x: number;
+  y: number;
+} | null>(null);
+
+const dragOffset = useRef({
+  x: 0,
+  y: 0,
+});
+
+const [resizingZoneId, setResizingZoneId] =
+  useState<string | null>(null);
+
+const [resizePreview, setResizePreview] =
+  useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+const svgRef =
+  useRef<SVGSVGElement | null>(null);
+  const [timeMinutes, setTimeMinutes] = useState(720);
 
 const daylightProgress = Math.min(
   1,
@@ -61,6 +108,262 @@ const shadowLength = 240 - sunHeight * 150;
 
 const shadowOffsetX = normalisedX * shadowLength;
 const shadowOffsetY = normalisedY * shadowLength;
+
+function getSvgCoordinates(
+  clientX: number,
+  clientY: number,
+) {
+  const svg = svgRef.current;
+
+  if (!svg) {
+    return null;
+  }
+
+  const point = svg.createSVGPoint();
+
+  point.x = clientX;
+  point.y = clientY;
+
+  const matrix = svg.getScreenCTM();
+
+  if (!matrix) {
+    return null;
+  }
+
+  return point.matrixTransform(
+    matrix.inverse(),
+  );
+}
+
+function handleZonePointerDown(
+  event: ReactPointerEvent<SVGGElement>,
+  zone: GardenZone,
+) {
+  if (!isEditing) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const position =
+    getSvgCoordinates(
+  event.clientX,
+  event.clientY,
+);
+
+  if (!position) {
+    return;
+  }
+
+  dragOffset.current = {
+    x: position.x - zone.x,
+    y: position.y - zone.y,
+  };
+
+  setDraggedZoneId(zone.id);
+
+  setDragPreview({
+    x: zone.x,
+    y: zone.y,
+  });
+
+  event.currentTarget.setPointerCapture(
+    event.pointerId,
+  );
+}
+
+function handleZonePointerMove(
+  event: ReactPointerEvent<SVGGElement>,
+  zone: GardenZone,
+) {
+  if (
+    !isEditing ||
+    draggedZoneId !== zone.id
+  ) {
+    return;
+  }
+
+  const position =
+    getSvgCoordinates(
+  event.clientX,
+  event.clientY,
+);
+
+  if (!position) {
+    return;
+  }
+
+  const nextX = Math.max(
+    8,
+    Math.min(
+      992 - zone.width,
+      position.x - dragOffset.current.x,
+    ),
+  );
+
+  const nextY = Math.max(
+    8,
+    Math.min(
+      612 - zone.height,
+      position.y - dragOffset.current.y,
+    ),
+  );
+
+  setDragPreview({
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+  });
+}
+
+function handleZonePointerUp(
+  event: ReactPointerEvent<SVGGElement>,
+  zone: GardenZone,
+) {
+  if (
+    !isEditing ||
+    draggedZoneId !== zone.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (dragPreview) {
+    void onMoveZone?.(
+      zone.id,
+      dragPreview.x,
+      dragPreview.y,
+    );
+  }
+
+  if (
+    event.currentTarget.hasPointerCapture(
+      event.pointerId,
+    )
+  ) {
+    event.currentTarget.releasePointerCapture(
+      event.pointerId,
+    );
+  }
+
+  setDraggedZoneId(null);
+  setDragPreview(null);
+}
+
+function handleResizePointerDown(
+  event: ReactPointerEvent<SVGCircleElement>,
+  zone: GardenZone,
+) {
+  if (!isEditing) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  setResizingZoneId(zone.id);
+
+  setResizePreview({
+    width: zone.width,
+    height: zone.height,
+  });
+
+  event.currentTarget.setPointerCapture(
+    event.pointerId,
+  );
+}
+
+function handleResizePointerMove(
+  event: ReactPointerEvent<SVGCircleElement>,
+  zone: GardenZone,
+) {
+  if (
+    !isEditing ||
+    resizingZoneId !== zone.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const position = getSvgCoordinates(
+    event.clientX,
+    event.clientY,
+  );
+
+  if (!position) {
+    return;
+  }
+
+  const minimumWidth = 120;
+  const minimumHeight = 90;
+
+  const maximumWidth =
+    992 - zone.x;
+
+  const maximumHeight =
+    612 - zone.y;
+
+  const nextWidth = Math.max(
+    minimumWidth,
+    Math.min(
+      maximumWidth,
+      position.x - zone.x,
+    ),
+  );
+
+  const nextHeight = Math.max(
+    minimumHeight,
+    Math.min(
+      maximumHeight,
+      position.y - zone.y,
+    ),
+  );
+
+  setResizePreview({
+    width: Math.round(nextWidth),
+    height: Math.round(nextHeight),
+  });
+}
+
+function handleResizePointerUp(
+  event: ReactPointerEvent<SVGCircleElement>,
+  zone: GardenZone,
+) {
+  if (
+    !isEditing ||
+    resizingZoneId !== zone.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (resizePreview) {
+    void onResizeZone?.(
+      zone.id,
+      resizePreview.width,
+      resizePreview.height,
+    );
+  }
+
+  if (
+    event.currentTarget.hasPointerCapture(
+      event.pointerId,
+    )
+  ) {
+    event.currentTarget.releasePointerCapture(
+      event.pointerId,
+    );
+  }
+
+  setResizingZoneId(null);
+  setResizePreview(null);
+}
   return (
     <section className="property-section">
       <div className="property-heading">
@@ -69,8 +372,49 @@ const shadowOffsetY = normalisedY * shadowLength;
           <p>Tap an area to see the plants inside.</p>
         </div>
 
-        <button type="button">Manage gardens</button>
+        <div className="property-edit-actions">
+  {isEditing && (
+    <button
+      type="button"
+      className="add-garden-area-button"
+      onClick={() => {
+        void onCreateZone?.();
+      }}
+    >
+      ＋ Add growing area
+    </button>
+  )}
+
+  <button
+    type="button"
+    className={
+      isEditing
+        ? "finish-garden-edit-button"
+        : undefined
+    }
+    onClick={() => {
+      setIsEditing((current) => !current);
+    }}
+  >
+    {isEditing
+      ? "✓ Done"
+      : "Manage gardens"}
+  </button>
+</div>
       </div>
+      {isEditing && (
+  <div className="property-edit-banner">
+    <span>✥</span>
+
+    <div>
+      <strong>Editing garden layout</strong>
+      <p>
+        Add growing areas to your property.
+        Moving and resizing comes next.
+      </p>
+    </div>
+  </div>
+)}
       <SunlightControls
   enabled={sunlightEnabled}
   timeMinutes={timeMinutes}
@@ -80,7 +424,12 @@ const shadowOffsetY = normalisedY * shadowLength;
 
       <div className="property-map-frame">
         <svg
-          className="property-map"
+  ref={svgRef}
+  className={`property-map ${
+    isEditing
+      ? "property-map-editing"
+      : ""
+  }`}
           viewBox="0 0 1000 620"
           role="img"
           aria-label="Top-down map of the property and garden areas"
@@ -394,49 +743,216 @@ const shadowOffsetY = normalisedY * shadowLength;
   </g>
 )}
 
-          {zones.map((zone) => (
-            <g
-              key={zone.id}
-              className={`garden-zone-group ${
-  selectedZoneId === zone.id ? "zone-selected" : ""
-}`}
-              onClick={() => onSelectZone(zone)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  onSelectZone(zone);
-                }
-              }}
-            >
-              <rect
-                className={`garden-zone-hitbox zone-${zone.type}`}
-                x={zone.x}
-                y={zone.y}
-                width={zone.width}
-                height={zone.height}
-                rx="18"
-              />
+          {zones.map((zone) => {
+  const isDragging =
+    draggedZoneId === zone.id;
 
-              <foreignObject
-                x={zone.x + 10}
-                y={zone.y + 10}
-                width={Math.max(zone.width - 20, 120)}
-                height={Math.max(zone.height - 20, 76)}
-              >
-                <div className="garden-zone-label">
-                  <strong>{zone.name}</strong>
-                  <span>{zone.plantCount} plants</span>
+    const isResizing =
+  resizingZoneId === zone.id;
 
-                  {zone.alerts ? (
-                    <small>{zone.alerts} need attention</small>
-                  ) : (
-                    <small>Everything is fine</small>
-                  )}
-                </div>
-              </foreignObject>
-            </g>
-          ))}
+  const displayX =
+    isDragging && dragPreview
+      ? dragPreview.x
+      : zone.x;
+
+  const displayY =
+    isDragging && dragPreview
+      ? dragPreview.y
+      : zone.y;
+
+      const displayWidth =
+  isResizing && resizePreview
+    ? resizePreview.width
+    : zone.width;
+
+const displayHeight =
+  isResizing && resizePreview
+    ? resizePreview.height
+    : zone.height;
+
+  return (
+    <g
+      key={zone.id}
+      className={`garden-zone-group ${
+        selectedZoneId === zone.id
+          ? "zone-selected"
+          : ""
+      } ${
+        isEditing
+          ? "zone-editing"
+          : ""
+      } ${
+        isDragging
+          ? "zone-dragging"
+          : ""
+      } ${isResizing
+  ? "zone-resizing"
+  : ""}`}
+      onClick={() => {
+        if (!isEditing) {
+          onSelectZone(zone);
+        }
+      }}
+      onPointerDown={(event) =>
+        handleZonePointerDown(
+          event,
+          zone,
+        )
+      }
+      onPointerMove={(event) =>
+        handleZonePointerMove(
+          event,
+          zone,
+        )
+      }
+      onPointerUp={(event) =>
+        handleZonePointerUp(
+          event,
+          zone,
+        )
+      }
+      onPointerCancel={(event) =>
+        handleZonePointerUp(
+          event,
+          zone,
+        )
+      }
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (
+          !isEditing &&
+          (
+            event.key === "Enter" ||
+            event.key === " "
+          )
+        ) {
+          onSelectZone(zone);
+        }
+      }}
+    >
+      <rect
+        className={`garden-zone-hitbox zone-${zone.type}`}
+        x={displayX}
+        y={displayY}
+        width={displayWidth}
+        height={displayHeight}
+        rx="18"
+      />
+
+      {isEditing && (
+        <text
+          className="garden-drag-symbol"
+          x={
+            displayX +
+            zone.width -
+            25
+          }
+          y={displayY + 30}
+        >
+          ✥
+        </text>
+      )}
+
+      <foreignObject
+        x={displayX + 10}
+        y={displayY + 10}
+        width={Math.max(
+          displayWidth - 20,
+          120,
+        )}
+        height={Math.max(
+          displayHeight - 20,
+          76,
+        )}
+        pointerEvents="none"
+      >
+        <div className="garden-zone-label">
+          <strong>
+            {zone.name}
+          </strong>
+
+          <span>
+            {zone.plantCount}{" "}
+            {zone.plantCount === 1
+              ? "plant"
+              : "plants"}
+          </span>
+
+          {zone.alerts ? (
+            <small>
+              {zone.alerts} need
+              attention
+            </small>
+          ) : (
+            <small>
+              Everything is fine
+            </small>
+          )}
+        </div>
+      </foreignObject>
+      {isEditing && (
+  <>
+    <circle
+      className="garden-resize-handle"
+      cx={
+        displayX +
+        displayWidth -
+        12
+      }
+      cy={
+        displayY +
+        displayHeight -
+        12
+      }
+      r="13"
+      onPointerDown={(event) =>
+        handleResizePointerDown(
+          event,
+          zone,
+        )
+      }
+      onPointerMove={(event) =>
+        handleResizePointerMove(
+          event,
+          zone,
+        )
+      }
+      onPointerUp={(event) =>
+        handleResizePointerUp(
+          event,
+          zone,
+        )
+      }
+      onPointerCancel={(event) =>
+        handleResizePointerUp(
+          event,
+          zone,
+        )
+      }
+    />
+
+    <text
+      className="garden-resize-symbol"
+      x={
+        displayX +
+        displayWidth -
+        12
+      }
+      y={
+        displayY +
+        displayHeight -
+        7
+      }
+      textAnchor="middle"
+    >
+      ↘
+    </text>
+  </>
+)}
+    </g>
+  );
+})}
         </svg>
       </div>
     </section>

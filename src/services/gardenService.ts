@@ -208,3 +208,28 @@ export async function updateGardenArea(
     },
   );
 }
+export function subscribeToGarden(
+  gardenId: string,
+  onGardenChanged: (
+    garden: GardenArea | null,
+  ) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    getGardenReference(gardenId),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onGardenChanged(null);
+        return;
+      }
+
+      onGardenChanged({
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as GardenArea);
+    },
+    (error) => {
+      onError?.(error);
+    },
+  );
+}

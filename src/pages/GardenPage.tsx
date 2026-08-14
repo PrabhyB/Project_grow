@@ -6,7 +6,10 @@ import {
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { getGardenById } from "../data/garden";
+import {
+  subscribeToGarden,
+  type GardenArea,
+} from "../services/gardenService";
 import AddPlantForm from "../components/AddPlantForm";
 import { useWeather } from "../hooks/useWeather";
 import { assessPlantCare } from "../services/careEngine";
@@ -63,11 +66,16 @@ export default function GardenPage() {
   const { gardenId } = useParams();
   const navigate = useNavigate();
 
-  const garden = gardenId
-    ? getGardenById(gardenId)
-    : undefined;
-
   const { forecast } = useWeather();
+
+ const [garden, setGarden] =
+  useState<GardenArea | null>(null);
+
+const [isLoadingGarden, setIsLoadingGarden] =
+  useState(true);
+
+const [gardenError, setGardenError] =
+  useState("");
 
   const [plants, setPlants] = useState<GardenPlant[]>(
     [],
@@ -77,6 +85,30 @@ export default function GardenPage() {
   const [isLoadingPlants, setIsLoadingPlants] =
     useState(true);
   const [plantError, setPlantError] = useState("");
+
+  useEffect(() => {
+  if (!gardenId) {
+    setIsLoadingGarden(false);
+    return;
+  }
+
+  setIsLoadingGarden(true);
+  setGardenError("");
+
+  const unsubscribe = subscribeToGarden(
+    gardenId,
+    (updatedGarden) => {
+      setGarden(updatedGarden);
+      setIsLoadingGarden(false);
+    },
+    (error) => {
+      setGardenError(error.message);
+      setIsLoadingGarden(false);
+    },
+  );
+
+  return unsubscribe;
+}, [gardenId]);
 
   useEffect(() => {
     if (!gardenId) {
@@ -101,9 +133,37 @@ export default function GardenPage() {
     return unsubscribe;
   }, [gardenId]);
 
-  if (!garden) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (!gardenId) {
+  return <Navigate to="/dashboard" replace />;
+}
+
+if (isLoadingGarden) {
+  return (
+    <div className="garden-page">
+      <p>Loading garden…</p>
+    </div>
+  );
+}
+
+if (gardenError) {
+  return (
+    <div className="garden-page">
+      <Link to="/dashboard">
+        ← Dashboard
+      </Link>
+
+      <p>
+        The garden could not be loaded:
+        {" "}
+        {gardenError}
+      </p>
+    </div>
+  );
+}
+
+if (!garden) {
+  return <Navigate to="/dashboard" replace />;
+}
 
   const todayWeather = forecast?.daily[0];
   const tomorrowWeather = forecast?.daily[1];
