@@ -14,6 +14,7 @@ import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import GardenPage from "./pages/GardenPage";
 import PlantPage from "./pages/PlantPage";
+import PropertySetupPage from "./pages/PropertySetupPage";
 
 type ProtectedRouteProps = {
   user: User | null;
@@ -64,6 +65,15 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/login" element={<LoginPage />} />
+
+        <Route
+  path="/setup-property"
+  element={
+    <ProtectedRoute user={user}>
+      <PropertySetupPage />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="/dashboard"

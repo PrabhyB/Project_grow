@@ -2,6 +2,8 @@ import {
   addDoc,
   collection,
   doc,
+  deleteDoc,
+  getDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -124,36 +126,81 @@ function getGardenReference(gardenId: string) {
   );
 }
 
-export async function ensureDefaultGardens() {
-  const gardensCollection =
-    getUserGardensCollection();
+function getGardenSetupReference() {
+  const user = auth.currentUser;
 
-  const snapshot = await getDocs(
-    gardensCollection,
+  if (!user) {
+    throw new Error(
+      "You must be logged in to access gardens.",
+    );
+  }
+
+  return doc(
+    db,
+    "users",
+    user.uid,
+    "appState",
+    "gardenSetup",
   );
+}
 
-  if (!snapshot.empty) {
+export async function ensureDefaultGardens() {
+  const setupReference =
+    getGardenSetupReference();
+
+  const setupSnapshot =
+    await getDoc(setupReference);
+
+  if (
+    setupSnapshot.exists() &&
+    setupSnapshot.data().initialised === true
+  ) {
     return;
   }
 
-  await Promise.all(
-    defaultGardens.map((garden) =>
-      setDoc(
-        getGardenReference(garden.id),
-        {
-          name: garden.name,
-          description: garden.description,
-          type: garden.type,
-          x: garden.x,
-          y: garden.y,
-          width: garden.width,
-          height: garden.height,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true },
+  const gardensCollection =
+    getUserGardensCollection();
+
+  const snapshot =
+    await getDocs(gardensCollection);
+
+  if (snapshot.empty) {
+    await Promise.all(
+      defaultGardens.map((garden) =>
+        setDoc(
+          getGardenReference(garden.id),
+          {
+            name: garden.name,
+            description: garden.description,
+            type: garden.type,
+            x: garden.x,
+            y: garden.y,
+            width: garden.width,
+            height: garden.height,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        ),
       ),
-    ),
+    );
+  }
+
+  await setDoc(
+    setupReference,
+    {
+      initialised: true,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+export async function deleteGardenArea(
+  gardenId: string,
+) {
+  await deleteDoc(
+    getGardenReference(gardenId),
   );
 }
 
