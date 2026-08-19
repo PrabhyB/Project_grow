@@ -19,7 +19,7 @@ export default function SignUpPage() {
 
     try {
       await registerUser(name, email, password);
-      navigate("/dashboard");
+      navigate("/setup-property");
     } catch (err) {
       setError(
         err instanceof Error

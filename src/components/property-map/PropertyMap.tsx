@@ -5,6 +5,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import SunlightControls from "./SunlightControls";
+import type {
+  PropertyObject,
+  PropertyObjectType,
+} from "../../services/propertyObjectService";
 
 export type GardenZone = {
   id: string;
@@ -21,6 +25,12 @@ export type GardenZone = {
 type PropertyMapProps = {
   zones: GardenZone[];
   selectedZoneId?: string;
+  propertyObjects: PropertyObject[];
+
+onCreatePropertyObject?: (
+  type: PropertyObjectType,
+) => void | Promise<void>;
+  
   onSelectZone: (zone: GardenZone) => void;
 
   onCreateZone?: () => void | Promise<void>;
@@ -36,21 +46,69 @@ onResizeZone?: (
   width: number,
   height: number,
 ) => void | Promise<void>;
+
+onMovePropertyObject?: (
+  objectId: string,
+  x: number,
+  y: number,
+) => void | Promise<void>;
+
+onResizePropertyObject?: (
+  objectId: string,
+  width: number,
+  height: number,
+) => void | Promise<void>;
+
+onRotatePropertyObject?: (
+  objectId: string,
+  rotation: number,
+) => void | Promise<void>;
+
+onDeleteZone?: (
+  zone: GardenZone,
+) => void | Promise<void>;
+
+onDeletePropertyObject?: (
+  object: PropertyObject,
+) => void | Promise<void>;
+
+onChangePropertyObjectHeight?: (
+  objectId: string,
+  physicalHeightM: number,
+) => void | Promise<void>;
 };
 
 export default function PropertyMap({
   zones,
+  propertyObjects,
   selectedZoneId,
   onSelectZone,
   onCreateZone,
   onMoveZone,
   onResizeZone,
+  onCreatePropertyObject,
+  onMovePropertyObject,
+  onResizePropertyObject,
+  onRotatePropertyObject,
+  onDeleteZone,
+onDeletePropertyObject,
+onChangePropertyObjectHeight,
 }: PropertyMapProps) {
   const [sunlightEnabled, setSunlightEnabled] = useState(false);
 const [isEditing, setIsEditing] =
   useState(false);
   const [draggedZoneId, setDraggedZoneId] =
   useState<string | null>(null);
+
+  const [
+  selectedPropertyObjectId,
+  setSelectedPropertyObjectId,
+] = useState<string | null>(null);
+
+const [
+  propertyObjectHeightDraft,
+  setPropertyObjectHeightDraft,
+] = useState("");
 
 const [dragPreview, setDragPreview] = useState<{
   x: number;
@@ -108,6 +166,46 @@ const shadowLength = 240 - sunHeight * 150;
 
 const shadowOffsetX = normalisedX * shadowLength;
 const shadowOffsetY = normalisedY * shadowLength;
+const [
+  draggedPropertyObjectId,
+  setDraggedPropertyObjectId,
+] = useState<string | null>(null);
+
+const [
+  propertyObjectDragPreview,
+  setPropertyObjectDragPreview,
+] = useState<{
+  x: number;
+  y: number;
+} | null>(null);
+
+const propertyObjectDragOffset = useRef({
+  x: 0,
+  y: 0,
+});
+
+const [
+  resizingPropertyObjectId,
+  setResizingPropertyObjectId,
+] = useState<string | null>(null);
+
+const [
+  propertyObjectResizePreview,
+  setPropertyObjectResizePreview,
+] = useState<{
+  width: number;
+  height: number;
+} | null>(null);
+
+const [
+  rotatingPropertyObjectId,
+  setRotatingPropertyObjectId,
+] = useState<string | null>(null);
+
+const [
+  propertyObjectRotationPreview,
+  setPropertyObjectRotationPreview,
+] = useState<number | null>(null);
 
 function getSvgCoordinates(
   clientX: number,
@@ -364,7 +462,366 @@ function handleResizePointerUp(
   setResizingZoneId(null);
   setResizePreview(null);
 }
-  return (
+
+function handlePropertyObjectPointerDown(
+  event: ReactPointerEvent<SVGGElement>,
+  object: PropertyObject,
+) {
+  if (!isEditing) {
+    return;
+  }
+  setSelectedPropertyObjectId(
+  object.id,
+);
+
+const defaultHeight =
+  object.type === "tree"
+    ? 4
+    : object.type === "fence"
+      ? 1.8
+      : 2;
+
+setPropertyObjectHeightDraft(
+  String(
+    object.physicalHeightM ??
+      defaultHeight,
+  ),
+);
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const position = getSvgCoordinates(
+    event.clientX,
+    event.clientY,
+  );
+
+  if (!position) {
+    return;
+  }
+
+  propertyObjectDragOffset.current = {
+    x: position.x - object.x,
+    y: position.y - object.y,
+  };
+
+  setDraggedPropertyObjectId(object.id);
+
+  setPropertyObjectDragPreview({
+    x: object.x,
+    y: object.y,
+  });
+
+  event.currentTarget.setPointerCapture(
+    event.pointerId,
+  );
+}
+
+function handlePropertyObjectPointerMove(
+  event: ReactPointerEvent<SVGGElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    draggedPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  const position = getSvgCoordinates(
+    event.clientX,
+    event.clientY,
+  );
+
+  if (!position) {
+    return;
+  }
+
+  const nextX = Math.max(
+    8,
+    Math.min(
+      992 - object.width,
+      position.x -
+        propertyObjectDragOffset.current.x,
+    ),
+  );
+
+  const nextY = Math.max(
+    8,
+    Math.min(
+      612 - object.height,
+      position.y -
+        propertyObjectDragOffset.current.y,
+    ),
+  );
+
+  setPropertyObjectDragPreview({
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+  });
+}
+
+function handlePropertyObjectPointerUp(
+  event: ReactPointerEvent<SVGGElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    draggedPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (propertyObjectDragPreview) {
+    void onMovePropertyObject?.(
+      object.id,
+      propertyObjectDragPreview.x,
+      propertyObjectDragPreview.y,
+    );
+  }
+
+  if (
+    event.currentTarget.hasPointerCapture(
+      event.pointerId,
+    )
+  ) {
+    event.currentTarget.releasePointerCapture(
+      event.pointerId,
+    );
+  }
+
+  setDraggedPropertyObjectId(null);
+  setPropertyObjectDragPreview(null);
+}
+
+function handlePropertyObjectResizeDown(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (!isEditing) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  setResizingPropertyObjectId(object.id);
+
+  setPropertyObjectResizePreview({
+    width: object.width,
+    height: object.height,
+  });
+
+  event.currentTarget.setPointerCapture(
+    event.pointerId,
+  );
+}
+
+function handlePropertyObjectResizeMove(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    resizingPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const position = getSvgCoordinates(
+    event.clientX,
+    event.clientY,
+  );
+
+  if (!position) {
+    return;
+  }
+
+  const minimumSize =
+    object.type === "tree" ? 45 : 30;
+
+  const nextWidth = Math.max(
+    minimumSize,
+    Math.min(
+      992 - object.x,
+      position.x - object.x,
+    ),
+  );
+
+  const nextHeight = Math.max(
+    minimumSize,
+    Math.min(
+      612 - object.y,
+      position.y - object.y,
+    ),
+  );
+
+  setPropertyObjectResizePreview({
+    width: Math.round(nextWidth),
+    height: Math.round(nextHeight),
+  });
+}
+
+function handlePropertyObjectResizeUp(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    resizingPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (propertyObjectResizePreview) {
+    void onResizePropertyObject?.(
+      object.id,
+      propertyObjectResizePreview.width,
+      propertyObjectResizePreview.height,
+    );
+  }
+
+  if (
+    event.currentTarget.hasPointerCapture(
+      event.pointerId,
+    )
+  ) {
+    event.currentTarget.releasePointerCapture(
+      event.pointerId,
+    );
+  }
+
+  setResizingPropertyObjectId(null);
+  setPropertyObjectResizePreview(null);
+}
+
+function handlePropertyObjectRotateDown(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    object.type !== "fence"
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  setRotatingPropertyObjectId(object.id);
+  setPropertyObjectRotationPreview(
+    object.rotation,
+  );
+
+  event.currentTarget.setPointerCapture(
+    event.pointerId,
+  );
+}
+
+function handlePropertyObjectRotateMove(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    rotatingPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const position = getSvgCoordinates(
+    event.clientX,
+    event.clientY,
+  );
+
+  if (!position) {
+    return;
+  }
+
+  const centreX =
+    object.x + object.width / 2;
+
+  const centreY =
+    object.y + object.height / 2;
+
+  const radians = Math.atan2(
+    position.y - centreY,
+    position.x - centreX,
+  );
+
+  let degrees =
+    radians * (180 / Math.PI) + 90;
+
+  // Normalise to 0–359 degrees.
+  degrees = (degrees + 360) % 360;
+
+  // Snap to 5-degree increments.
+  degrees =
+    Math.round(degrees / 5) * 5;
+
+  setPropertyObjectRotationPreview(
+    degrees,
+  );
+}
+
+function handlePropertyObjectRotateUp(
+  event: ReactPointerEvent<SVGCircleElement>,
+  object: PropertyObject,
+) {
+  if (
+    !isEditing ||
+    rotatingPropertyObjectId !== object.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (
+    propertyObjectRotationPreview !== null
+  ) {
+    void onRotatePropertyObject?.(
+      object.id,
+      propertyObjectRotationPreview,
+    );
+  }
+
+  if (
+    event.currentTarget.hasPointerCapture(
+      event.pointerId,
+    )
+  ) {
+    event.currentTarget.releasePointerCapture(
+      event.pointerId,
+    );
+  }
+
+  setRotatingPropertyObjectId(null);
+  setPropertyObjectRotationPreview(null);
+}
+
+const selectedPropertyObject =
+  propertyObjects.find(
+    (object) =>
+      object.id ===
+      selectedPropertyObjectId,
+  ) ?? null;
+
+return (
     <section className="property-section">
       <div className="property-heading">
         <div>
@@ -381,9 +838,35 @@ function handleResizePointerUp(
         void onCreateZone?.();
       }}
     >
+      
       ＋ Add growing area
     </button>
+    
+    
   )}
+  <button
+  type="button"
+  className="add-property-object-button"
+  onClick={() => {
+    void onCreatePropertyObject?.(
+      "tree",
+    );
+  }}
+>
+  🌳 Add tree
+</button>
+
+<button
+  type="button"
+  className="add-property-object-button"
+  onClick={() => {
+    void onCreatePropertyObject?.(
+      "fence",
+    );
+  }}
+>
+  ━ Add fence
+</button>
 
   <button
     type="button"
@@ -413,7 +896,85 @@ function handleResizePointerUp(
         Moving and resizing comes next.
       </p>
     </div>
+    {isEditing &&
+  selectedPropertyObject && (
+    <div className="property-object-settings">
+      <div>
+        <strong>
+          {selectedPropertyObject.name}
+        </strong>
+
+        <span>
+          {selectedPropertyObject.type}
+        </span>
+      </div>
+
+      <label>
+        Height
+
+        <div className="property-height-input">
+          <input
+            type="number"
+            min="0.1"
+            max="50"
+            step="0.1"
+            value={
+              propertyObjectHeightDraft
+            }
+            onChange={(event) => {
+              setPropertyObjectHeightDraft(
+                event.target.value,
+              );
+            }}
+          />
+
+          <span>metres</span>
+        </div>
+      </label>
+
+      <button
+        type="button"
+        onClick={() => {
+          const height =
+            Number(
+              propertyObjectHeightDraft,
+            );
+
+          if (
+            !Number.isFinite(height) ||
+            height <= 0
+          ) {
+            window.alert(
+              "Enter a valid height greater than 0.",
+            );
+
+            return;
+          }
+
+          void onChangePropertyObjectHeight?.(
+            selectedPropertyObject.id,
+            height,
+          );
+        }}
+      >
+        Save height
+      </button>
+
+      <button
+        type="button"
+        className="close-object-settings"
+        onClick={() => {
+          setSelectedPropertyObjectId(
+            null,
+          );
+        }}
+      >
+        ×
+      </button>
+    </div>
+  )}
   </div>
+  
 )}
       <SunlightControls
   enabled={sunlightEnabled}
@@ -742,6 +1303,708 @@ function handleResizePointerUp(
     />
   </g>
 )}
+{propertyObjects.map((object) => {
+  const isDragging =
+    draggedPropertyObjectId === object.id;
+
+  const isResizing =
+    resizingPropertyObjectId === object.id;
+
+    const isRotating =
+  rotatingPropertyObjectId === object.id;
+
+const displayRotation =
+  isRotating &&
+  propertyObjectRotationPreview !== null
+    ? propertyObjectRotationPreview
+    : object.rotation;
+
+  const displayX =
+    isDragging && propertyObjectDragPreview
+      ? propertyObjectDragPreview.x
+      : object.x;
+
+  const displayY =
+    isDragging && propertyObjectDragPreview
+      ? propertyObjectDragPreview.y
+      : object.y;
+
+  const displayWidth =
+    isResizing && propertyObjectResizePreview
+      ? propertyObjectResizePreview.width
+      : object.width;
+
+  const displayHeight =
+    isResizing && propertyObjectResizePreview
+      ? propertyObjectResizePreview.height
+      : object.height;
+
+  const centreX =
+    displayX + displayWidth / 2;
+
+  const centreY =
+    displayY + displayHeight / 2;
+
+    const objectDirectionX =
+  centreX - sunX;
+
+const objectDirectionY =
+  centreY - sunY;
+
+const objectDirectionLength =
+  Math.sqrt(
+    objectDirectionX * objectDirectionX +
+      objectDirectionY * objectDirectionY,
+  ) || 1;
+
+const objectNormalisedX =
+  objectDirectionX /
+  objectDirectionLength;
+
+const objectNormalisedY =
+  objectDirectionY /
+  objectDirectionLength;
+
+const defaultPhysicalHeight =
+  object.type === "tree"
+    ? 4
+    : object.type === "fence"
+      ? 1.8
+      : 2;
+
+const physicalHeightM =
+  object.physicalHeightM ??
+  defaultPhysicalHeight;
+
+// Approximate sun elevation.
+// Low in morning/evening,
+// highest around midday.
+const sunElevationDegrees =
+  8 + sunHeight * 52;
+
+const sunElevationRadians =
+  sunElevationDegrees *
+  (Math.PI / 180);
+
+// Approximate map scale for shadows.
+const pixelsPerMetre = 28;
+
+const calculatedShadowDistance =
+  (
+    physicalHeightM *
+    pixelsPerMetre
+  ) /
+  Math.tan(sunElevationRadians);
+
+// Prevent extremely long shadows
+// close to sunrise/sunset.
+const objectShadowDistance =
+  Math.min(
+    300,
+    Math.max(
+      8,
+      calculatedShadowDistance,
+    ),
+  );
+
+const objectShadowOffsetX =
+  objectNormalisedX *
+  objectShadowDistance;
+
+const objectShadowOffsetY =
+  objectNormalisedY *
+  objectShadowDistance;
+  
+const objectShadowEndX =
+  centreX + objectShadowOffsetX;
+
+const objectShadowEndY =
+  centreY + objectShadowOffsetY;
+
+const shadowPerpendicularX =
+  -objectNormalisedY;
+
+const shadowPerpendicularY =
+  objectNormalisedX;
+
+const treeStartRadius =
+  Math.min(
+    displayWidth,
+    displayHeight,
+  ) * 0.42;
+
+const treeEndRadius =
+  treeStartRadius * 0.55;
+  
+    const editTransform =
+  object.type === "fence"
+    ? `rotate(
+        ${displayRotation}
+        ${centreX}
+        ${centreY}
+      )`
+    : undefined;
+
+    const rotationRadians =
+  displayRotation *
+  (Math.PI / 180);
+
+// Convert the global shadow direction
+// into the fence's rotated coordinate space.
+const localShadowOffsetX =
+  objectShadowOffsetX *
+    Math.cos(rotationRadians) +
+  objectShadowOffsetY *
+    Math.sin(rotationRadians);
+
+const localShadowOffsetY =
+  -objectShadowOffsetX *
+    Math.sin(rotationRadians) +
+  objectShadowOffsetY *
+    Math.cos(rotationRadians);
+
+  return (
+    <g
+      key={object.id}
+      className={`property-object ${
+        isEditing
+          ? "property-object-editing"
+          : ""
+      } ${
+        isDragging
+          ? "property-object-dragging"
+          : ""
+      }`}
+      onPointerDown={(event) =>
+        handlePropertyObjectPointerDown(
+          event,
+          object,
+        )
+      }
+      onPointerMove={(event) =>
+        handlePropertyObjectPointerMove(
+          event,
+          object,
+        )
+      }
+      onPointerUp={(event) =>
+        handlePropertyObjectPointerUp(
+          event,
+          object,
+        )
+      }
+      onPointerCancel={(event) =>
+        handlePropertyObjectPointerUp(
+          event,
+          object,
+        )
+      }
+    >
+
+    {sunlightEnabled &&
+  object.type === "tree" && (
+    <g
+      pointerEvents="none"
+      clipPath="url(#propertyBoundary)"
+    >
+      <polygon
+        fill="#26352b"
+        fillOpacity="0.3"
+        points={`
+          ${
+            centreX +
+            shadowPerpendicularX *
+              treeStartRadius
+          },
+          ${
+            centreY +
+            shadowPerpendicularY *
+              treeStartRadius
+          }
+
+          ${
+            objectShadowEndX +
+            shadowPerpendicularX *
+              treeEndRadius
+          },
+          ${
+            objectShadowEndY +
+            shadowPerpendicularY *
+              treeEndRadius
+          }
+
+          ${
+            objectShadowEndX -
+            shadowPerpendicularX *
+              treeEndRadius
+          },
+          ${
+            objectShadowEndY -
+            shadowPerpendicularY *
+              treeEndRadius
+          }
+
+          ${
+            centreX -
+            shadowPerpendicularX *
+              treeStartRadius
+          },
+          ${
+            centreY -
+            shadowPerpendicularY *
+              treeStartRadius
+          }
+        `}
+      />
+
+      <ellipse
+        cx={objectShadowEndX}
+        cy={objectShadowEndY}
+        rx={treeEndRadius}
+        ry={treeEndRadius * 0.72}
+        fill="#26352b"
+        fillOpacity="0.3"
+      />
+    </g>
+  )}      
+  
+      {object.type === "tree" && (
+        <g>
+          
+          <circle
+            cx={centreX}
+            cy={centreY}
+            r={
+              Math.min(
+                displayWidth,
+                displayHeight,
+              ) / 2
+            }
+            fill="#4f873d"
+            stroke="#35652d"
+            strokeWidth="5"
+          />
+
+          <circle
+            cx={
+              centreX -
+              displayWidth * 0.12
+            }
+            cy={
+              centreY -
+              displayHeight * 0.09
+            }
+            r={
+              Math.min(
+                displayWidth,
+                displayHeight,
+              ) * 0.24
+            }
+            fill="#6da653"
+          />
+
+          <circle
+            cx={
+              centreX +
+              displayWidth * 0.16
+            }
+            cy={
+              centreY +
+              displayHeight * 0.05
+            }
+            r={
+              Math.min(
+                displayWidth,
+                displayHeight,
+              ) * 0.22
+            }
+            fill="#5d9747"
+          />
+        </g>
+      )}
+      {sunlightEnabled &&
+  object.type === "fence" && (
+    <g
+      className="property-fence-shadow"
+      pointerEvents="none"
+      transform={`
+        rotate(
+          ${displayRotation}
+          ${centreX}
+          ${centreY}
+        )
+      `}
+    >
+      {/* Far end of the shadow */}
+      <rect
+        x={
+          displayX +
+          localShadowOffsetX
+        }
+        y={
+          displayY +
+          localShadowOffsetY
+        }
+        width={displayWidth}
+        height={displayHeight}
+        rx="3"
+      />
+
+      {/* Top connector */}
+      <polygon
+        points={`
+          ${displayX},${displayY}
+          ${displayX + displayWidth},${displayY}
+          ${
+            displayX +
+            displayWidth +
+            localShadowOffsetX
+          },${
+            displayY +
+            localShadowOffsetY
+          }
+          ${
+            displayX +
+            localShadowOffsetX
+          },${
+            displayY +
+            localShadowOffsetY
+          }
+        `}
+      />
+
+      {/* Bottom connector */}
+      <polygon
+        points={`
+          ${displayX},${
+            displayY +
+            displayHeight
+          }
+          ${
+            displayX +
+            displayWidth
+          },${
+            displayY +
+            displayHeight
+          }
+          ${
+            displayX +
+            displayWidth +
+            localShadowOffsetX
+          },${
+            displayY +
+            displayHeight +
+            localShadowOffsetY
+          }
+          ${
+            displayX +
+            localShadowOffsetX
+          },${
+            displayY +
+            displayHeight +
+            localShadowOffsetY
+          }
+        `}
+      />
+
+      {/* Left end connector */}
+      <polygon
+        points={`
+          ${displayX},${displayY}
+          ${displayX},${
+            displayY +
+            displayHeight
+          }
+          ${
+            displayX +
+            localShadowOffsetX
+          },${
+            displayY +
+            displayHeight +
+            localShadowOffsetY
+          }
+          ${
+            displayX +
+            localShadowOffsetX
+          },${
+            displayY +
+            localShadowOffsetY
+          }
+        `}
+      />
+
+      {/* Right end connector */}
+      <polygon
+        points={`
+          ${
+            displayX +
+            displayWidth
+          },${displayY}
+          ${
+            displayX +
+            displayWidth
+          },${
+            displayY +
+            displayHeight
+          }
+          ${
+            displayX +
+            displayWidth +
+            localShadowOffsetX
+          },${
+            displayY +
+            displayHeight +
+            localShadowOffsetY
+          }
+          ${
+            displayX +
+            displayWidth +
+            localShadowOffsetX
+          },${
+            displayY +
+            localShadowOffsetY
+          }
+        `}
+      />
+    </g>
+  )}
+      {object.type === "fence" && (
+        <g
+          transform={`
+            rotate(
+              ${displayRotation}
+              ${centreX}
+              ${centreY}
+            )
+          `}
+        >
+          <rect
+            x={displayX}
+            y={displayY}
+            width={displayWidth}
+            height={displayHeight}
+            rx="4"
+            fill="#76513b"
+            stroke="#523728"
+            strokeWidth="3"
+          />
+
+          {Array.from({
+            length: Math.max(
+              2,
+              Math.floor(
+                displayWidth / 35,
+              ),
+            ),
+          }).map((_, index) => {
+            const posts = Math.max(
+              2,
+              Math.floor(
+                displayWidth / 35,
+              ),
+            );
+
+            const spacing =
+              displayWidth / posts;
+
+            return (
+              <rect
+                key={index}
+                x={
+                  displayX +
+                  index * spacing
+                }
+                y={displayY - 5}
+                width="6"
+                height={displayHeight + 10}
+                fill="#624431"
+              />
+            );
+          })}
+        </g>
+      )}
+
+      {isEditing && (
+        <>
+          <rect
+  className="property-object-outline"
+  x={displayX}
+  y={displayY}
+  width={displayWidth}
+  height={displayHeight}
+  rx="8"
+  transform={editTransform}
+/>
+
+          <circle
+            className="property-object-resize-handle"
+            cx={
+              displayX +
+              displayWidth -
+              8
+            }
+            cy={
+              displayY +
+              displayHeight -
+              8
+            }
+            r="12"
+            transform={editTransform}
+            onPointerDown={(event) =>
+              handlePropertyObjectResizeDown(
+                event,
+                object,
+              )
+            }
+            onPointerMove={(event) =>
+              handlePropertyObjectResizeMove(
+                event,
+                object,
+              )
+            }
+            onPointerUp={(event) =>
+              handlePropertyObjectResizeUp(
+                event,
+                object,
+              )
+            }
+            onPointerCancel={(event) =>
+              handlePropertyObjectResizeUp(
+                event,
+                object,
+              )
+            }
+          />
+
+          <text
+            className="property-object-resize-symbol"
+            x={
+              displayX +
+              displayWidth -
+              8
+            }
+            y={
+              displayY +
+              displayHeight -
+              3
+            }
+            textAnchor="middle"
+            transform={editTransform}
+          >
+            ↘
+          </text>
+          {object.type === "fence" && (
+  <>
+    <line
+      className="property-object-rotate-line"
+      x1={centreX}
+      y1={displayY}
+      x2={centreX}
+      y2={displayY - 38}
+      transform={`
+        rotate(
+          ${displayRotation}
+          ${centreX}
+          ${centreY}
+        )
+      `}
+    />
+    
+
+    <circle
+      className="property-object-rotate-handle"
+      cx={centreX}
+      cy={displayY - 42}
+      r="13"
+      transform={`
+        rotate(
+          ${displayRotation}
+          ${centreX}
+          ${centreY}
+        )
+      `}
+      onPointerDown={(event) =>
+        handlePropertyObjectRotateDown(
+          event,
+          object,
+        )
+      }
+      onPointerMove={(event) =>
+        handlePropertyObjectRotateMove(
+          event,
+          object,
+        )
+      }
+      onPointerUp={(event) =>
+        handlePropertyObjectRotateUp(
+          event,
+          object,
+        )
+      }
+      onPointerCancel={(event) =>
+        handlePropertyObjectRotateUp(
+          event,
+          object,
+        )
+      }
+    />
+
+    <text
+      className="property-object-rotate-symbol"
+      x={centreX}
+      y={displayY - 37}
+      textAnchor="middle"
+      transform={`
+        rotate(
+          ${displayRotation}
+          ${centreX}
+          ${centreY}
+        )
+      `}
+    >
+      ↻
+    </text>
+  </>
+)}
+
+<g
+  className="property-delete-control"
+  onPointerDown={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  onClick={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    void onDeletePropertyObject?.(
+      object,
+    );
+  }}
+>
+  <circle
+    className="property-delete-handle"
+    cx={displayX + 12}
+    cy={displayY + 12}
+    r="13"
+    transform={editTransform}
+  />
+
+  <text
+    className="property-delete-symbol"
+    x={displayX + 12}
+    y={displayY + 17}
+    textAnchor="middle"
+    transform={editTransform}
+  >
+    ×
+  </text>
+</g>
+        </>
+      )}
+    </g>
+  );
+})}
 
           {zones.map((zone) => {
   const isDragging =
@@ -932,6 +2195,36 @@ const displayHeight =
       }
     />
 
+    <g
+  className="garden-delete-control"
+  onPointerDown={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  onClick={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    void onDeleteZone?.(zone);
+  }}
+>
+  <circle
+    className="garden-delete-handle"
+    cx={displayX + 14}
+    cy={displayY + 14}
+    r="13"
+  />
+
+  <text
+    className="garden-delete-symbol"
+    x={displayX + 14}
+    y={displayY + 19}
+    textAnchor="middle"
+  >
+    ×
+  </text>
+</g>
+
     <text
       className="garden-resize-symbol"
       x={
@@ -949,9 +2242,12 @@ const displayHeight =
       ↘
     </text>
   </>
+  
 )}
     </g>
+    
   );
+  
 })}
         </svg>
       </div>

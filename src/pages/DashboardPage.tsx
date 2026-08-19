@@ -20,11 +20,21 @@ import {
 } from "../services/dashboardAttentionService";
 import {
   createGardenArea,
+  deleteGardenArea,
   ensureDefaultGardens,
   subscribeToGardens,
   updateGardenArea,
   type GardenArea,
 } from "../services/gardenService";
+
+import {
+  createPropertyObject,
+  deletePropertyObject,
+  subscribeToPropertyObjects,
+  updatePropertyObject,
+  type PropertyObject,
+  type PropertyObjectType,
+} from "../services/propertyObjectService";
 
 type DashboardPlant = GardenPlant & {
   gardenId: string;
@@ -52,6 +62,9 @@ const [gardensAreReady, setGardensAreReady] =
 
   const [selectedGarden, setSelectedGarden] =
   useState<GardenZone | null>(null);
+
+  const [propertyObjects, setPropertyObjects] =
+  useState<PropertyObject[]>([]);
 
   const userName =
     auth.currentUser?.displayName ||
@@ -201,6 +214,23 @@ useEffect(() => {
   };
 }, [gardens, gardensAreReady]);
 
+useEffect(() => {
+  const unsubscribe =
+    subscribeToPropertyObjects(
+      (objects) => {
+        setPropertyObjects(objects);
+      },
+      (error) => {
+        console.error(
+          "Unable to load property objects:",
+          error,
+        );
+      },
+    );
+
+  return unsubscribe;
+}, []);
+
 async function handleCreateGardenArea() {
   try {
     const areaNumber = gardens.length + 1;
@@ -257,6 +287,179 @@ async function handleResizeGardenArea(
   } catch (error) {
     console.error(
       "Unable to save garden size:",
+      error,
+    );
+  }
+}
+
+async function handleCreatePropertyObject(
+  type: PropertyObjectType,
+) {
+  try {
+    if (type === "tree") {
+      await createPropertyObject({
+  type: "tree",
+  name: "Tree",
+  x: 700,
+  y: 100,
+  width: 90,
+  height: 90,
+  rotation: 0,
+  physicalHeightM: 4,
+});
+
+      return;
+    }
+
+    if (type === "fence") {
+      await createPropertyObject({
+  type: "fence",
+  name: "Fence",
+  x: 550,
+  y: 520,
+  width: 220,
+  height: 14,
+  rotation: 0,
+  physicalHeightM: 1.8,
+});
+
+      return;
+    }
+  } catch (error) {
+    console.error(
+      "Unable to create property object:",
+      error,
+    );
+  }
+}
+
+async function handleMovePropertyObject(
+  objectId: string,
+  x: number,
+  y: number,
+) {
+  try {
+    await updatePropertyObject(objectId, {
+      x,
+      y,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save property object position:",
+      error,
+    );
+  }
+}
+
+async function handleResizePropertyObject(
+  objectId: string,
+  width: number,
+  height: number,
+) {
+  try {
+    await updatePropertyObject(objectId, {
+      width,
+      height,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save property object size:",
+      error,
+    );
+  }
+}
+async function handleRotatePropertyObject(
+  objectId: string,
+  rotation: number,
+) {
+  try {
+    await updatePropertyObject(objectId, {
+      rotation,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to save property object rotation:",
+      error,
+    );
+  }
+}
+
+async function handleDeleteGardenArea(
+  zone: GardenZone,
+) {
+  if (zone.plantCount > 0) {
+    window.alert(
+      `${zone.name} still contains ${
+        zone.plantCount
+      } ${
+        zone.plantCount === 1
+          ? "plant"
+          : "plants"
+      }. Move or remove those plants before deleting the growing area.`,
+    );
+
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Delete "${zone.name}"?\n\nThis cannot be undone.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteGardenArea(zone.id);
+
+    if (selectedGarden?.id === zone.id) {
+      setSelectedGarden(null);
+    }
+  } catch (error) {
+    console.error(
+      "Unable to delete growing area:",
+      error,
+    );
+  }
+}
+
+async function handleDeletePropertyObject(
+  object: PropertyObject,
+) {
+  const confirmed = window.confirm(
+    `Delete "${object.name}"?\n\nThis cannot be undone.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deletePropertyObject(
+      object.id,
+    );
+  } catch (error) {
+    console.error(
+      "Unable to delete property object:",
+      error,
+    );
+  }
+}
+
+async function handlePropertyObjectHeightChange(
+  objectId: string,
+  physicalHeightM: number,
+) {
+  try {
+    await updatePropertyObject(
+      objectId,
+      {
+        physicalHeightM,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Unable to save object height:",
       error,
     );
   }
@@ -351,6 +554,7 @@ async function handleResizeGardenArea(
 />
         <PropertyMap
   zones={liveGardenZones}
+  propertyObjects={propertyObjects}
   selectedZoneId={selectedGarden?.id}
   onSelectZone={(zone) => {
     setSelectedGarden(zone);
@@ -358,6 +562,27 @@ async function handleResizeGardenArea(
   onCreateZone={handleCreateGardenArea}
   onMoveZone={handleMoveGardenArea}
   onResizeZone={handleResizeGardenArea}
+  onCreatePropertyObject={
+    handleCreatePropertyObject
+  }
+  onMovePropertyObject={
+    handleMovePropertyObject
+  }
+  onResizePropertyObject={
+    handleResizePropertyObject
+  }
+  onRotatePropertyObject={
+  handleRotatePropertyObject
+}
+
+onDeleteZone={handleDeleteGardenArea}
+onDeletePropertyObject={
+  handleDeletePropertyObject
+}
+
+onChangePropertyObjectHeight={
+  handlePropertyObjectHeightChange
+}
 />
       </main>
       {selectedGarden && (
