@@ -94,6 +94,13 @@ export type PropertySpace = {
   x: number;
   y: number;
 
+  layoutX?: number;
+layoutY?: number;
+rotation?: number;
+
+shapeDetailWidthM?: number;
+shapeDetailDepthM?: number;
+
   createdAt?: unknown;
   updatedAt?: unknown;
 };
