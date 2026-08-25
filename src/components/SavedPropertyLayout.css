@@ -581,3 +581,140 @@ strong {
   outline: 3px solid #31713d;
   outline-offset: 3px;
 }
+
+/*
+ * Visual stacking order:
+ *
+ * building
+ * tree canopy
+ * property spaces
+ * growing areas
+ * fences
+ * temporary tree edit handle
+ */
+
+.saved-layout-structure {
+  z-index: 1;
+}
+
+.saved-layout-tree {
+  z-index: 2;
+
+  /*
+   * The canopy is visual only.
+   * Clicking through it selects
+   * whatever is underneath.
+   */
+  pointer-events: none;
+}
+
+.saved-layout-space {
+  z-index: 4;
+}
+
+.saved-layout-fence {
+  z-index: 5;
+}
+
+.saved-tree-edit-handle {
+  position: absolute;
+
+  z-index: 8;
+
+  display: grid;
+  place-items: center;
+
+  width: 32px;
+  height: 32px;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+
+  border:
+    2px solid #ffffff;
+
+  border-radius: 50%;
+
+  background: #477e4c;
+
+  box-shadow:
+    0 1px 5px
+    rgb(0 0 0 / 24%);
+
+  cursor: grab;
+  touch-action: none;
+
+  user-select: none;
+}
+
+.saved-tree-edit-handle:active {
+  cursor: grabbing;
+}
+
+.saved-tree-edit-handle-selected {
+  outline:
+    3px solid #285f32;
+
+  outline-offset: 2px;
+}
+
+.saved-map-view-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 6px;
+
+  margin:
+    0 0 10px;
+}
+
+.saved-map-view-controls
+button {
+  min-width: 36px;
+
+  padding: 7px 9px;
+
+  border:
+    1px solid #c5d7c5;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #365f3d;
+
+  font: inherit;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.saved-map-view-controls
+button:hover {
+  background: #f1f7f0;
+}
+
+.saved-map-zoom-value {
+  min-width: 48px;
+
+  color: #546b58;
+
+  font-size: 0.78rem;
+  font-weight: 750;
+
+  text-align: center;
+}
+
+.saved-map-pan-divider {
+  width: 1px;
+  height: 25px;
+
+  margin:
+    0 3px;
+
+  background: #d7e1d5;
+}
