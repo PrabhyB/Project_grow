@@ -13,7 +13,9 @@ import {
   subscribeToPropertyConfig,
   replaceSetupPropertySpaces,
   resetPropertySetupForDevelopment,
-  updatePropertyConfig,  
+  updatePropertyConfig, 
+  subscribeToPropertySpaces,
+  type PropertySpace, 
   type PropertyType,
   type SpaceType,
   type NewPropertySpace,
@@ -24,6 +26,8 @@ type SpaceShapeType,
 import {
   deleteSetupStructure,
   saveSetupStructure,
+  subscribeToPropertyObjects,
+  type PropertyObject,
   type StructureKind,
 } from "../services/propertyObjectService";
 
@@ -822,6 +826,37 @@ function buildSpaceBoundary(
   return null;
 }
 
+function getBoundaryDimensions(
+  boundary: PropertyPoint[] | undefined,
+) {
+  if (
+    !boundary ||
+    boundary.length === 0
+  ) {
+    return null;
+  }
+
+  const xValues =
+    boundary.map(
+      (point) => point.x,
+    );
+
+  const yValues =
+    boundary.map(
+      (point) => point.y,
+    );
+
+  return {
+    width:
+      Math.max(...xValues) -
+      Math.min(...xValues),
+
+    depth:
+      Math.max(...yValues) -
+      Math.min(...yValues),
+  };
+}
+
 const spacesByPropertyType: Record<
   PropertyType,
   SpaceType[]
@@ -1100,6 +1135,14 @@ const layoutCanvasRef =
     null,
   );
 
+  const isEditMode =
+  new URLSearchParams(
+    window.location.search,
+  ).get("edit") === "1";
+
+const editLayoutLoaded =
+  useRef(false);
+
 const [
   layoutPositions,
   setLayoutPositions,
@@ -1334,12 +1377,375 @@ function finishLayoutDrag(
 ]);
 
   useEffect(() => {
+  if (
+    !isEditMode ||
+    editLayoutLoaded.current
+  ) {
+    return;
+  }
+
+  let savedSpaces:
+    PropertySpace[] | null =
+    null;
+
+  let savedObjects:
+    PropertyObject[] | null =
+    null;
+
+  function tryLoadSavedLayout() {
+    if (
+      savedSpaces === null ||
+      savedObjects === null ||
+      editLayoutLoaded.current
+    ) {
+      return;
+    }
+
+    const setupSpaces =
+      savedSpaces.filter(
+        (space) =>
+          space.id.startsWith(
+            "setup-",
+          ),
+      );
+
+    const drafts: Partial<
+      Record<
+        SpaceType,
+        SpaceShapeDraft
+      >
+    > = {};
+
+    const positions: Record<
+      string,
+      LayoutPosition
+    > = {};
+
+    const loadedSpaceTypes:
+      SpaceType[] = [];
+
+    setupSpaces.forEach(
+      (space) => {
+        loadedSpaceTypes.push(
+          space.type,
+        );
+
+        drafts[space.type] = {
+          name:
+            space.name,
+
+          shapeType:
+            space.shapeType,
+
+          widthM:
+            String(
+              space.widthM,
+            ),
+
+          depthM:
+            String(
+              space.depthM,
+            ),
+
+          detailWidthM:
+            space
+              .shapeDetailWidthM !==
+            undefined
+              ? String(
+                  space
+                    .shapeDetailWidthM,
+                )
+              : "",
+
+          detailDepthM:
+            space
+              .shapeDetailDepthM !==
+            undefined
+              ? String(
+                  space
+                    .shapeDetailDepthM,
+                )
+              : "",
+
+          elevationM:
+            String(
+              space.elevationM ??
+                0,
+            ),
+
+          customPoints:
+            space.shapeType ===
+            "custom"
+              ? space.boundary
+              : [],
+        };
+
+        positions[
+          `space:${space.type}`
+        ] = {
+          x:
+            space.layoutX ??
+            0.5,
+
+          y:
+            space.layoutY ??
+            0.5,
+
+          rotation:
+            space.rotation ??
+            0,
+        };
+      },
+    );
+
+    setSelectedSpaces(
+      loadedSpaceTypes,
+    );
+
+    setSpaceDimensionDrafts(
+      drafts,
+    );
+
+    const mainStructure =
+      savedObjects.find(
+        (object) =>
+          object.id ===
+          "setup-main-structure",
+      );
+
+    if (mainStructure) {
+      const boundaryDimensions =
+        getBoundaryDimensions(
+          mainStructure.boundary,
+        );
+
+      const widthM =
+        mainStructure.widthM ??
+        boundaryDimensions?.width ??
+        mainStructure.width /
+          20;
+
+      const depthM =
+        mainStructure.depthM ??
+        boundaryDimensions?.depth ??
+        mainStructure.height /
+          20;
+
+      const savedShape =
+        mainStructure.shapeType ??
+        "rectangle";
+
+      const hasShapeDetails =
+        mainStructure
+          .shapeDetailWidthM !==
+          undefined &&
+        mainStructure
+          .shapeDetailDepthM !==
+          undefined;
+
+      /*
+       * Older saved L/U/T shapes may
+       * not have their shape-detail
+       * measurements.
+       *
+       * In that case preserve their
+       * exact polygon by treating them
+       * as a custom outline.
+       */
+      const editableShape =
+        savedShape ===
+          "rectangle" ||
+        savedShape ===
+          "custom" ||
+        hasShapeDetails
+          ? savedShape
+          : "custom";
+
+      setStructureDraft({
+        enabled: true,
+
+        name:
+          mainStructure.name,
+
+        structureKind:
+          mainStructure
+            .structureKind ??
+          "other",
+
+        shapeType:
+          editableShape,
+
+        widthM:
+          String(widthM),
+
+        depthM:
+          String(depthM),
+
+        detailWidthM:
+          mainStructure
+            .shapeDetailWidthM !==
+          undefined
+            ? String(
+                mainStructure
+                  .shapeDetailWidthM,
+              )
+            : "",
+
+        detailDepthM:
+          mainStructure
+            .shapeDetailDepthM !==
+          undefined
+            ? String(
+                mainStructure
+                  .shapeDetailDepthM,
+              )
+            : "",
+
+        customPoints:
+          editableShape ===
+          "custom"
+            ? mainStructure
+                .boundary ?? []
+            : [],
+
+        physicalHeightM:
+          String(
+            mainStructure
+              .physicalHeightM ??
+              5,
+          ),
+
+        floorLevel:
+          String(
+            mainStructure
+              .floorLevel ??
+              0,
+          ),
+
+        baseElevationM:
+          String(
+            mainStructure
+              .baseElevationM ??
+              0,
+          ),
+
+        ceilingHeightM:
+          String(
+            mainStructure
+              .ceilingHeightM ??
+              2.4,
+          ),
+      });
+
+      positions.structure = {
+        x:
+          mainStructure.layoutX ??
+          0.5,
+
+        y:
+          mainStructure.layoutY ??
+          0.3,
+
+        rotation:
+          mainStructure.rotation ??
+          0,
+      };
+
+      /*
+       * Prevent the existing
+       * selectedType effect from
+       * replacing the loaded building
+       * with a default one.
+       */
+      if (
+  mainStructure.structureKind ===
+    "flat"
+) {
+  setStructureDraftPropertyType(
+    "flat",
+  );
+} else if (
+  mainStructure.structureKind ===
+    "maisonette"
+) {
+  setStructureDraftPropertyType(
+    "maisonette",
+  );
+} else if (
+  selectedType
+) {
+  setStructureDraftPropertyType(
+    selectedType,
+  );
+}
+    }
+
+    setLayoutPositions(
+      positions,
+    );
+
+    setCurrentStep(4);
+
+    setStepFourStage(
+      "layout",
+    );
+
+    editLayoutLoaded.current =
+      true;
+  }
+
+  const unsubscribeSpaces =
+    subscribeToPropertySpaces(
+      (spaces) => {
+        savedSpaces =
+          spaces;
+
+        tryLoadSavedLayout();
+      },
+      (loadError) => {
+        console.error(
+          "Unable to load saved property spaces:",
+          loadError,
+        );
+      },
+    );
+
+  const unsubscribeObjects =
+    subscribeToPropertyObjects(
+      (objects) => {
+        savedObjects =
+          objects;
+
+        tryLoadSavedLayout();
+      },
+      (loadError) => {
+        console.error(
+          "Unable to load saved property objects:",
+          loadError,
+        );
+      },
+    );
+
+  return () => {
+    unsubscribeSpaces();
+    unsubscribeObjects();
+  };
+}, [
+  isEditMode,
+  selectedType,
+]);
+
+  useEffect(() => {
     const unsubscribe =
       subscribeToPropertyConfig(
         (config) => {
           if (!config) {
             return;
           }
+
+          setNorthRotation(
+  config.northRotation ?? 0,
+);
 
           setPropertyName(config.name);
 
@@ -1801,15 +2207,23 @@ async function handleSaveProperty() {
 
         boundary,
 
-        shapeDetailWidthM:
-  Number(
-    draft.detailWidthM,
-  ) || undefined,
+        ...(draft.detailWidthM.trim()
+  ? {
+      shapeDetailWidthM:
+        Number(
+          draft.detailWidthM,
+        ),
+    }
+  : {}),
 
-shapeDetailDepthM:
-  Number(
-    draft.detailDepthM,
-  ) || undefined,
+...(draft.detailDepthM.trim()
+  ? {
+      shapeDetailDepthM:
+        Number(
+          draft.detailDepthM,
+        ),
+    }
+  : {}),
 
         elevationM,
 
@@ -1892,84 +2306,105 @@ shapeDetailDepthM:
           "maisonette";
 
       await saveSetupStructure({
-        // PropertyObjectType currently
-        // uses "house" for structures.
-        // structureKind tells us what
-        // it actually represents.
-        type: "house",
+  type: "house",
 
-        name:
-          structureDraft.name.trim(),
+  name:
+    structureDraft.name.trim(),
 
-        structureKind:
+  structureKind:
+    structureDraft.structureKind,
+
+  shapeType:
+    structureDraft.shapeType,
+
+  boundary:
+    structureBoundary,
+
+  widthM:
+    structureWidth,
+
+  depthM:
+    structureDepth,
+
+  ...(structureDraft
+    .detailWidthM
+    .trim()
+    ? {
+        shapeDetailWidthM:
+          Number(
+            structureDraft
+              .detailWidthM,
+          ),
+      }
+    : {}),
+
+  ...(structureDraft
+    .detailDepthM
+    .trim()
+    ? {
+        shapeDetailDepthM:
+          Number(
+            structureDraft
+              .detailDepthM,
+          ),
+      }
+    : {}),
+
+  // Existing legacy map values.
+  x: 300,
+  y: 180,
+
+  width:
+    structureWidth * 20,
+
+  height:
+    structureDepth * 20,
+
+  // New saved layout.
+  layoutX:
+    structurePosition.x,
+
+  layoutY:
+    structurePosition.y,
+
+  rotation:
+    structurePosition.rotation,
+
+  physicalHeightM:
+    isFlatLike
+      ? Number(
           structureDraft
-            .structureKind,
-
-        shapeType:
+            .ceilingHeightM,
+        )
+      : Number(
           structureDraft
-            .shapeType,
+            .physicalHeightM,
+        ),
 
-        boundary:
-          structureBoundary,
+  baseElevationM:
+    isFlatLike
+      ? Number(
+          structureDraft
+            .baseElevationM,
+        )
+      : 0,
 
-        // Legacy map values.
-        x: 300,
-        y: 180,
-
-        width:
-          structureWidth *
-          20,
-
-        height:
-          structureDepth *
-          20,
-
-        // New normalized layout.
-        layoutX:
-          structurePosition.x,
-
-        layoutY:
-          structurePosition.y,
-
-        rotation:
-          structurePosition
-            .rotation,
-
-        physicalHeightM:
-          isFlatLike
-            ? Number(
-                structureDraft
-                  .ceilingHeightM,
-              )
-            : Number(
-                structureDraft
-                  .physicalHeightM,
-              ),
-
+  ...(isFlatLike
+    ? {
         floorLevel:
-          isFlatLike
-            ? Number(
-                structureDraft
-                  .floorLevel,
-              )
-            : undefined,
-
-        baseElevationM:
-          isFlatLike
-            ? Number(
-                structureDraft
-                  .baseElevationM,
-              )
-            : 0,
+          Number(
+            structureDraft
+              .floorLevel,
+          ),
 
         ceilingHeightM:
-          isFlatLike
-            ? Number(
-                structureDraft
-                  .ceilingHeightM,
-              )
-            : undefined,
-      });
+          Number(
+            structureDraft
+              .ceilingHeightM,
+          ),
+      }
+    : {}),
+});
     } else {
       await deleteSetupStructure();
     }
@@ -2370,16 +2805,16 @@ const layoutPixelsPerMetre =
           </p>
 
           <h1>
-            Arrange your property
-          </h1>
+  {isEditMode
+    ? "Edit your property"
+    : "Arrange your property"}
+</h1>
 
           <p>
-            This is the first view
-            of your property map.
-            We'll position your
-            building and growing
-            spaces here.
-          </p>
+  {isEditMode
+    ? "Move, resize or rotate your existing property layout, then save your changes."
+    : "This is the first view of your property map. Position your building and spaces here before saving."}
+</p>
         </header>
 
         <div className="property-layout-toolbar">
@@ -2943,6 +3378,12 @@ if (!position) {
           draggable and rotatable.
         </p>
 
+        {error && (
+  <p className="property-setup-error">
+    {error}
+  </p>
+)}
+
         <footer className="property-setup-actions">
           <button
             className="property-setup-back"
@@ -2969,7 +3410,9 @@ if (!position) {
   }}
 >
   {isSaving
-    ? "Saving property…"
+  ? "Saving changes…"
+  : isEditMode
+    ? "Save changes"
     : "Save property"}
 </button>
         </footer>
