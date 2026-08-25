@@ -979,6 +979,19 @@ const [
       null,
     );
 
+    const [
+  viewZoom,
+  setViewZoom,
+] = useState(1);
+
+const [
+  viewPan,
+  setViewPan,
+] = useState({
+  x: 0,
+  y: 0,
+});
+
   useEffect(() => {
     let configLoaded = false;
     let spacesLoaded = false;
@@ -1627,19 +1640,25 @@ setGrowingAreaEditDraft({
       canvas.getBoundingClientRect();
 
     const savedPosition =
-      getObjectPosition(
-        object,
-      );
+  getObjectPosition(
+    object,
+  );
 
-    const centreX =
-      rectangle.left +
-      savedPosition.x *
-        rectangle.width;
+const viewedPosition =
+  projectLayoutPosition(
+    savedPosition.x,
+    savedPosition.y,
+  );
 
-    const centreY =
-      rectangle.top +
-      savedPosition.y *
-        rectangle.height;
+const centreX =
+  rectangle.left +
+  viewedPosition.x *
+    rectangle.width;
+
+const centreY =
+  rectangle.top +
+  viewedPosition.y *
+    rectangle.height;
 
     setObjectDrag({
       id:
@@ -1694,21 +1713,33 @@ setGrowingAreaEditDraft({
     const rectangle =
       canvas.getBoundingClientRect();
 
-    const x =
-      (
-        event.clientX -
-        rectangle.left -
-        objectDrag.offsetX
-      ) /
-      rectangle.width;
+    const screenX =
+  (
+    event.clientX -
+    rectangle.left -
+    objectDrag.offsetX
+  ) /
+  rectangle.width;
 
-    const y =
-      (
-        event.clientY -
-        rectangle.top -
-        objectDrag.offsetY
-      ) /
-      rectangle.height;
+const screenY =
+  (
+    event.clientY -
+    rectangle.top -
+    objectDrag.offsetY
+  ) /
+  rectangle.height;
+
+const modelPosition =
+  unprojectLayoutPosition(
+    screenX,
+    screenY,
+  );
+
+const x =
+  modelPosition.x;
+
+const y =
+  modelPosition.y;
 
     setObjectDragPreview({
       id:
@@ -1843,12 +1874,12 @@ setGrowingAreaEditDraft({
       0,
 
     parentWidthPx:
-      space.widthM *
-      pixelsPerMetre,
+  space.widthM *
+  viewPixelsPerMetre,
 
-    parentDepthPx:
-      space.depthM *
-      pixelsPerMetre,
+parentDepthPx:
+  space.depthM *
+  viewPixelsPerMetre,
   });
 
   setGrowingAreaDragPreview({
@@ -2524,6 +2555,296 @@ async function handleDeleteGrowingArea() {
       ),
     );
 
+    const viewPixelsPerMetre =
+  pixelsPerMetre *
+  viewZoom;
+
+function projectLayoutPosition(
+  x: number,
+  y: number,
+) {
+  return {
+    x:
+      0.5 +
+      (
+        x - 0.5
+      ) *
+        viewZoom +
+      viewPan.x,
+
+    y:
+      0.5 +
+      (
+        y - 0.5
+      ) *
+        viewZoom +
+      viewPan.y,
+  };
+}
+
+function unprojectLayoutPosition(
+  x: number,
+  y: number,
+) {
+  return {
+    x:
+      0.5 +
+      (
+        x -
+        0.5 -
+        viewPan.x
+      ) /
+        viewZoom,
+
+    y:
+      0.5 +
+      (
+        y -
+        0.5 -
+        viewPan.y
+      ) /
+        viewZoom,
+  };
+}
+function handleFitView() {
+  const canvas =
+    canvasRef.current;
+
+  if (!canvas) {
+    return;
+  }
+
+  const rectangle =
+    canvas.getBoundingClientRect();
+
+  if (
+    rectangle.width <= 0 ||
+    rectangle.height <= 0
+  ) {
+    return;
+  }
+
+  const bounds: {
+    x: number;
+    y: number;
+    halfWidth: number;
+    halfDepth: number;
+  }[] = [];
+
+  function addToBounds(
+    x: number,
+    y: number,
+    widthM: number,
+    depthM: number,
+  ) {
+    bounds.push({
+      x,
+      y,
+
+      halfWidth:
+        (
+          widthM *
+          pixelsPerMetre
+        ) /
+        (
+          2 *
+          rectangle.width
+        ),
+
+      halfDepth:
+        (
+          depthM *
+          pixelsPerMetre
+        ) /
+        (
+          2 *
+          rectangle.height
+        ),
+    });
+  }
+
+  if (
+    structure &&
+    structure.layoutX !==
+      undefined &&
+    structure.layoutY !==
+      undefined
+  ) {
+    const boundarySize =
+      structure.boundary
+        ? getBoundarySize(
+            structure.boundary,
+          )
+        : {
+            width: 1,
+            depth: 1,
+          };
+
+    addToBounds(
+      structure.layoutX,
+      structure.layoutY,
+
+      structure.widthM ??
+        boundarySize.width,
+
+      structure.depthM ??
+        boundarySize.depth,
+    );
+  }
+
+  spaces.forEach(
+    (space) => {
+      if (
+        space.layoutX ===
+          undefined ||
+        space.layoutY ===
+          undefined
+      ) {
+        return;
+      }
+
+      addToBounds(
+        space.layoutX,
+        space.layoutY,
+        space.widthM,
+        space.depthM,
+      );
+    },
+  );
+
+  editableObjects.forEach(
+    (object) => {
+      const position =
+        getObjectPosition(
+          object,
+        );
+
+      const size =
+        getObjectSize(
+          object,
+        );
+
+      addToBounds(
+        position.x,
+        position.y,
+        size.widthM,
+        size.depthM,
+      );
+    },
+  );
+
+  if (
+    bounds.length === 0
+  ) {
+    setViewZoom(1);
+
+    setViewPan({
+      x: 0,
+      y: 0,
+    });
+
+    return;
+  }
+
+  const minimumX =
+    Math.min(
+      ...bounds.map(
+        (item) =>
+          item.x -
+          item.halfWidth,
+      ),
+    );
+
+  const maximumX =
+    Math.max(
+      ...bounds.map(
+        (item) =>
+          item.x +
+          item.halfWidth,
+      ),
+    );
+
+  const minimumY =
+    Math.min(
+      ...bounds.map(
+        (item) =>
+          item.y -
+          item.halfDepth,
+      ),
+    );
+
+  const maximumY =
+    Math.max(
+      ...bounds.map(
+        (item) =>
+          item.y +
+          item.halfDepth,
+      ),
+    );
+
+  const width =
+    Math.max(
+      0.1,
+      maximumX -
+        minimumX,
+    );
+
+  const height =
+    Math.max(
+      0.1,
+      maximumY -
+        minimumY,
+    );
+
+  /*
+   * Leave roughly 10% padding
+   * around the complete property.
+   */
+  const nextZoom =
+    clamp(
+      Math.min(
+        0.9 / width,
+        0.9 / height,
+      ),
+      0.35,
+      1.5,
+    );
+
+  const centreX =
+    (
+      minimumX +
+      maximumX
+    ) /
+    2;
+
+  const centreY =
+    (
+      minimumY +
+      maximumY
+    ) /
+    2;
+
+  setViewZoom(
+    nextZoom,
+  );
+
+  setViewPan({
+    x:
+      -(
+        centreX -
+        0.5
+      ) *
+      nextZoom,
+
+    y:
+      -(
+        centreY -
+        0.5
+      ) *
+      nextZoom,
+  });
+}
+
   return (
     <section className="saved-property-layout-card">
       <div className="saved-property-layout-heading">
@@ -2919,6 +3240,148 @@ async function handleDeleteGrowingArea() {
         </p>
       )}
 
+      <div className="saved-map-view-controls">
+  <button
+    type="button"
+    onClick={
+      handleFitView
+    }
+  >
+    ⛶ Fit
+  </button>
+
+  <button
+    type="button"
+    aria-label="Zoom out"
+    onClick={() =>
+      setViewZoom(
+        (current) =>
+          clamp(
+            current -
+              0.1,
+            0.35,
+            2.5,
+          ),
+      )
+    }
+  >
+    −
+  </button>
+
+  <span className="saved-map-zoom-value">
+    {Math.round(
+      viewZoom * 100,
+    )}
+    %
+  </span>
+
+  <button
+    type="button"
+    aria-label="Zoom in"
+    onClick={() =>
+      setViewZoom(
+        (current) =>
+          clamp(
+            current +
+              0.1,
+            0.35,
+            2.5,
+          ),
+      )
+    }
+  >
+    +
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setViewZoom(1);
+
+      setViewPan({
+        x: 0,
+        y: 0,
+      });
+    }}
+  >
+    Reset
+  </button>
+
+  <span className="saved-map-pan-divider" />
+
+  <button
+    type="button"
+    aria-label="Move map left"
+    onClick={() =>
+      setViewPan(
+        (current) => ({
+          ...current,
+
+          x:
+            current.x -
+            0.05,
+        }),
+      )
+    }
+  >
+    ←
+  </button>
+
+  <button
+    type="button"
+    aria-label="Move map up"
+    onClick={() =>
+      setViewPan(
+        (current) => ({
+          ...current,
+
+          y:
+            current.y -
+            0.05,
+        }),
+      )
+    }
+  >
+    ↑
+  </button>
+
+  <button
+    type="button"
+    aria-label="Move map down"
+    onClick={() =>
+      setViewPan(
+        (current) => ({
+          ...current,
+
+          y:
+            current.y +
+            0.05,
+        }),
+      )
+    }
+  >
+    ↓
+  </button>
+
+  <button
+    type="button"
+    aria-label="Move map right"
+    onClick={() =>
+      setViewPan(
+        (current) => ({
+          ...current,
+
+          x:
+            current.x +
+            0.05,
+        }),
+      )
+    }
+  >
+    →
+  </button>
+</div>
+
       <div
         ref={canvasRef}
         className="saved-property-layout-canvas"
@@ -2955,29 +3418,35 @@ async function handleDeleteGrowingArea() {
               structure.depthM ??
               boundarySize.depth;
 
+              const viewedPosition =
+  projectLayoutPosition(
+    structure.layoutX!,
+    structure.layoutY!,
+  );
+
             return (
               <div
                 className="saved-layout-item saved-layout-structure"
                 style={{
                   left: `${
-                    structure.layoutX! *
-                    100
-                  }%`,
+  viewedPosition.x *
+  100
+}%`,
 
-                  top: `${
-                    structure.layoutY! *
-                    100
-                  }%`,
+top: `${
+  viewedPosition.y *
+  100
+}%`,
 
                   width: `${
-                    width *
-                    pixelsPerMetre
-                  }px`,
+  width *
+  viewPixelsPerMetre
+}px`,
 
-                  height: `${
-                    depth *
-                    pixelsPerMetre
-                  }px`,
+height: `${
+  depth *
+  viewPixelsPerMetre
+}px`,
                 }}
               >
                 <div
@@ -3030,29 +3499,35 @@ async function handleDeleteGrowingArea() {
               return null;
             }
 
+            const viewedPosition =
+  projectLayoutPosition(
+    space.layoutX,
+    space.layoutY,
+  );
+
             return (
               <div
                 key={space.id}
                 className="saved-layout-item saved-layout-space"
                 style={{
                   left: `${
-                    space.layoutX *
-                    100
-                  }%`,
+  viewedPosition.x *
+  100
+}%`,
 
-                  top: `${
-                    space.layoutY *
-                    100
-                  }%`,
+top: `${
+  viewedPosition.y *
+  100
+}%`,
 
                   width: `${
                     space.widthM *
-                    pixelsPerMetre
+viewPixelsPerMetre
                   }px`,
 
                   height: `${
                     space.depthM *
-                    pixelsPerMetre
+                    viewPixelsPerMetre
                   }px`,
                 }}
               >
@@ -3150,14 +3625,14 @@ return (
       }%`,
 
       width: `${
-        area.widthM! *
-        pixelsPerMetre
-      }px`,
+  area.widthM! *
+  viewPixelsPerMetre
+}px`,
 
-      height: `${
-        area.depthM! *
-        pixelsPerMetre
-      }px`,
+height: `${
+  area.depthM! *
+  viewPixelsPerMetre
+}px`,
 
       transform:
         `translate(-50%, -50%) rotate(${area.rotation ?? 0}deg)`,
@@ -3259,9 +3734,15 @@ return (
                 ? objectDragPreview
                 : null;
 
-            const position =
-              preview ??
-              savedPosition;
+            const modelPosition =
+  preview ??
+  savedPosition;
+
+const position =
+  projectLayoutPosition(
+    modelPosition.x,
+    modelPosition.y,
+  );
 
             const isSelected =
               selectedObjectId ===
@@ -3298,12 +3779,12 @@ return (
 
                   width: `${
                     size.widthM *
-                    pixelsPerMetre
+viewPixelsPerMetre
                   }px`,
 
                   height: `${
                     size.depthM *
-                    pixelsPerMetre
+                    viewPixelsPerMetre
                   }px`,
                 }}
                 onPointerDown={(
@@ -3363,6 +3844,102 @@ return (
             );
           },
         )}
+
+        {isObjectEditing &&
+  editableObjects
+    .filter(
+      (object) =>
+        object.type ===
+        "tree",
+    )
+    .map((tree) => {
+      const savedPosition =
+        getObjectPosition(
+          tree,
+        );
+
+      const preview =
+        objectDragPreview
+          ?.id ===
+        tree.id
+          ? objectDragPreview
+          : null;
+
+      const modelPosition =
+        preview ??
+        savedPosition;
+
+      const position =
+        projectLayoutPosition(
+          modelPosition.x,
+          modelPosition.y,
+        );
+
+      const selected =
+        selectedObjectId ===
+        tree.id;
+
+      return (
+        <div
+          key={`tree-handle-${tree.id}`}
+          className={[
+            "saved-tree-edit-handle",
+
+            selected
+              ? "saved-tree-edit-handle-selected"
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          style={{
+            left: `${
+              position.x *
+              100
+            }%`,
+
+            top: `${
+              position.y *
+              100
+            }%`,
+          }}
+          title="Move or edit tree"
+          onPointerDown={(
+            event,
+          ) =>
+            startObjectDrag(
+              event,
+              tree,
+            )
+          }
+          onPointerMove={(
+            event,
+          ) =>
+            moveObjectDrag(
+              event,
+              tree,
+            )
+          }
+          onPointerUp={(
+            event,
+          ) =>
+            finishObjectDrag(
+              event,
+              tree,
+            )
+          }
+          onPointerCancel={(
+            event,
+          ) =>
+            finishObjectDrag(
+              event,
+              tree,
+            )
+          }
+        >
+          🌳
+        </div>
+      );
+    })}
       </div>
 
       {isObjectEditing && (
