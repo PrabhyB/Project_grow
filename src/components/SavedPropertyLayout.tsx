@@ -25,11 +25,17 @@ import {
 
 import {
   createGardenArea,
+  deleteGardenArea,
   subscribeToGardens,
+  updateGardenArea,
   type GardenArea,
   type GardenAreaType,
   type GrowingAreaKind,
 } from "../services/gardenService";
+
+import {
+  getGardenPlantCount,
+} from "../services/plantService";
 
 import {
   useNavigate,
@@ -73,6 +79,529 @@ function clamp(
       value,
     ),
   );
+}
+
+function pointOnSegment(
+  point: PropertyPoint,
+  start: PropertyPoint,
+  end: PropertyPoint,
+) {
+  const tolerance = 0.0001;
+
+  const cross =
+    (
+      point.y -
+      start.y
+    ) *
+      (
+        end.x -
+        start.x
+      ) -
+    (
+      point.x -
+      start.x
+    ) *
+      (
+        end.y -
+        start.y
+      );
+
+  if (
+    Math.abs(cross) >
+    tolerance
+  ) {
+    return false;
+  }
+
+  const dot =
+    (
+      point.x -
+      start.x
+    ) *
+      (
+        end.x -
+        start.x
+      ) +
+    (
+      point.y -
+      start.y
+    ) *
+      (
+        end.y -
+        start.y
+      );
+
+  if (
+    dot <
+    -tolerance
+  ) {
+    return false;
+  }
+
+  const lengthSquared =
+    (
+      end.x -
+      start.x
+    ) ** 2 +
+    (
+      end.y -
+      start.y
+    ) ** 2;
+
+  return (
+    dot <=
+    lengthSquared +
+      tolerance
+  );
+}
+
+function pointInPolygon(
+  point: PropertyPoint,
+  polygon: PropertyPoint[],
+) {
+  if (
+    polygon.length < 3
+  ) {
+    return false;
+  }
+
+  for (
+    let index = 0;
+    index <
+    polygon.length;
+    index += 1
+  ) {
+    const nextIndex =
+      (
+        index + 1
+      ) %
+      polygon.length;
+
+    if (
+      pointOnSegment(
+        point,
+        polygon[index],
+        polygon[nextIndex],
+      )
+    ) {
+      return true;
+    }
+  }
+
+  let inside = false;
+
+  for (
+    let index = 0,
+      previous =
+        polygon.length - 1;
+    index <
+    polygon.length;
+    previous = index++
+  ) {
+    const current =
+      polygon[index];
+
+    const prior =
+      polygon[previous];
+
+    const crosses =
+      (
+        current.y >
+        point.y
+      ) !==
+        (
+          prior.y >
+          point.y
+        ) &&
+      point.x <
+        (
+          (
+            prior.x -
+            current.x
+          ) *
+            (
+              point.y -
+              current.y
+            )
+        ) /
+          (
+            prior.y -
+            current.y
+          ) +
+          current.x;
+
+    if (crosses) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function getGrowingAreaCorners(
+  centreX: number,
+  centreY: number,
+  widthM: number,
+  depthM: number,
+  rotation: number,
+): PropertyPoint[] {
+  const radians =
+    (
+      rotation *
+      Math.PI
+    ) /
+    180;
+
+  const cosine =
+    Math.cos(
+      radians,
+    );
+
+  const sine =
+    Math.sin(
+      radians,
+    );
+
+  const halfWidth =
+    widthM / 2;
+
+  const halfDepth =
+    depthM / 2;
+
+  const corners = [
+    {
+      x: -halfWidth,
+      y: -halfDepth,
+    },
+    {
+      x: halfWidth,
+      y: -halfDepth,
+    },
+    {
+      x: halfWidth,
+      y: halfDepth,
+    },
+    {
+      x: -halfWidth,
+      y: halfDepth,
+    },
+  ];
+
+  return corners.map(
+    (corner) => ({
+      x:
+        centreX +
+        corner.x *
+          cosine -
+        corner.y *
+          sine,
+
+      y:
+        centreY +
+        corner.x *
+          sine +
+        corner.y *
+          cosine,
+    }),
+  );
+}
+
+function isGrowingAreaInsideSpace(
+  space: PropertySpace,
+  widthM: number,
+  depthM: number,
+  rotation: number,
+  layoutX: number,
+  layoutY: number,
+) {
+  if (
+    !space.boundary ||
+    space.boundary.length <
+      3
+  ) {
+    return false;
+  }
+
+  const centreX =
+    layoutX *
+    space.widthM;
+
+  const centreY =
+    layoutY *
+    space.depthM;
+
+  const corners =
+    getGrowingAreaCorners(
+      centreX,
+      centreY,
+      widthM,
+      depthM,
+      rotation,
+    );
+
+  /*
+   * Check several points along
+   * every edge as well as the
+   * centre. This also catches
+   * concave L/U/T-shaped spaces.
+   */
+  const pointsToCheck:
+    PropertyPoint[] = [
+      {
+        x: centreX,
+        y: centreY,
+      },
+    ];
+
+  corners.forEach(
+    (
+      corner,
+      index,
+    ) => {
+      const nextCorner =
+        corners[
+          (
+            index + 1
+          ) %
+            corners.length
+        ];
+
+      for (
+        let step = 0;
+        step <= 4;
+        step += 1
+      ) {
+        const progress =
+          step / 4;
+
+        pointsToCheck.push({
+          x:
+            corner.x +
+            (
+              nextCorner.x -
+              corner.x
+            ) *
+              progress,
+
+          y:
+            corner.y +
+            (
+              nextCorner.y -
+              corner.y
+            ) *
+              progress,
+        });
+      }
+    },
+  );
+
+  return pointsToCheck.every(
+    (point) =>
+      pointInPolygon(
+        point,
+        space.boundary,
+      ),
+  );
+}
+
+function findValidGrowingAreaPosition(
+  space: PropertySpace,
+  widthM: number,
+  depthM: number,
+  rotation: number,
+  preferredX: number,
+  preferredY: number,
+) {
+  const radians =
+    (
+      rotation *
+      Math.PI
+    ) /
+    180;
+
+  const halfWidth =
+    Math.abs(
+      Math.cos(
+        radians,
+      ),
+    ) *
+      (
+        widthM / 2
+      ) +
+    Math.abs(
+      Math.sin(
+        radians,
+      ),
+    ) *
+      (
+        depthM / 2
+      );
+
+  const halfDepth =
+    Math.abs(
+      Math.sin(
+        radians,
+      ),
+    ) *
+      (
+        widthM / 2
+      ) +
+    Math.abs(
+      Math.cos(
+        radians,
+      ),
+    ) *
+      (
+        depthM / 2
+      );
+
+  if (
+    halfWidth * 2 >
+      space.widthM ||
+    halfDepth * 2 >
+      space.depthM
+  ) {
+    return null;
+  }
+
+  const minimumX =
+    halfWidth /
+    space.widthM;
+
+  const maximumX =
+    1 -
+    minimumX;
+
+  const minimumY =
+    halfDepth /
+    space.depthM;
+
+  const maximumY =
+    1 -
+    minimumY;
+
+  const preferred = {
+    x:
+      clamp(
+        preferredX,
+        minimumX,
+        maximumX,
+      ),
+
+    y:
+      clamp(
+        preferredY,
+        minimumY,
+        maximumY,
+      ),
+  };
+
+  if (
+    isGrowingAreaInsideSpace(
+      space,
+      widthM,
+      depthM,
+      rotation,
+      preferred.x,
+      preferred.y,
+    )
+  ) {
+    return preferred;
+  }
+
+  /*
+   * Search for the nearest
+   * valid location if the
+   * preferred position sits
+   * in a cut-out.
+   */
+  let best:
+    {
+      x: number;
+      y: number;
+      distance: number;
+    } | null =
+    null;
+
+  const steps = 20;
+
+  for (
+    let row = 0;
+    row <= steps;
+    row += 1
+  ) {
+    const y =
+      minimumY +
+      (
+        maximumY -
+        minimumY
+      ) *
+        (
+          row /
+          steps
+        );
+
+    for (
+      let column = 0;
+      column <= steps;
+      column += 1
+    ) {
+      const x =
+        minimumX +
+        (
+          maximumX -
+          minimumX
+        ) *
+          (
+            column /
+            steps
+          );
+
+      if (
+        !isGrowingAreaInsideSpace(
+          space,
+          widthM,
+          depthM,
+          rotation,
+          x,
+          y,
+        )
+      ) {
+        continue;
+      }
+
+      const distance =
+        (
+          x -
+          preferred.x
+        ) ** 2 +
+        (
+          y -
+          preferred.y
+        ) ** 2;
+
+      if (
+        !best ||
+        distance <
+          best.distance
+      ) {
+        best = {
+          x,
+          y,
+          distance,
+        };
+      }
+    }
+  }
+
+  if (!best) {
+    return null;
+  }
+
+  return {
+    x: best.x,
+    y: best.y,
+  };
 }
 
 function getBoundarySize(
@@ -179,6 +708,44 @@ type GrowingAreaDraft = {
 
   rotation: string;
 };
+
+type GrowingAreaEditDraft = {
+  id: string;
+
+  name: string;
+
+  propertySpaceId: string;
+
+  growingAreaKind:
+    GrowingAreaKind;
+
+  widthM: string;
+  depthM: string;
+
+  rotation: string;
+};
+
+type GrowingAreaDrag = {
+  id: string;
+
+  startClientX: number;
+  startClientY: number;
+
+  startX: number;
+  startY: number;
+
+  parentRotation: number;
+
+  parentWidthPx: number;
+  parentDepthPx: number;
+} | null;
+
+type GrowingAreaDragPreview = {
+  id: string;
+
+  x: number;
+  y: number;
+} | null;
 
 const growingAreaKindOptions: {
   value: GrowingAreaKind;
@@ -297,6 +864,43 @@ export default function SavedPropertyLayout({
   setGrowingAreas,
 ] =
   useState<GardenArea[]>([]);
+
+  const [
+  isGrowingAreaEditing,
+  setIsGrowingAreaEditing,
+] = useState(false);
+
+const [
+  selectedGrowingAreaId,
+  setSelectedGrowingAreaId,
+] =
+  useState<string | null>(
+    null,
+  );
+
+const [
+  growingAreaEditDraft,
+  setGrowingAreaEditDraft,
+] =
+  useState<GrowingAreaEditDraft | null>(
+    null,
+  );
+
+const [
+  growingAreaDrag,
+  setGrowingAreaDrag,
+] =
+  useState<GrowingAreaDrag>(
+    null,
+  );
+
+const [
+  growingAreaDragPreview,
+  setGrowingAreaDragPreview,
+] =
+  useState<GrowingAreaDragPreview>(
+    null,
+  );
 
 const [
   showGrowingAreaForm,
@@ -525,6 +1129,20 @@ const [
       ],
     );
 
+    const selectedGrowingArea =
+  useMemo(
+    () =>
+      growingAreas.find(
+        (area) =>
+          area.id ===
+          selectedGrowingAreaId,
+      ) ?? null,
+    [
+      growingAreas,
+      selectedGrowingAreaId,
+    ],
+  );
+
   function selectObject(
     object: PropertyObject,
   ) {
@@ -569,6 +1187,59 @@ const [
 
     setObjectError("");
   }
+
+  function selectGrowingArea(
+  area: GardenArea,
+) {
+  setSelectedGrowingAreaId(
+    area.id,
+  );
+
+  setGrowingAreaEditDraft({
+    id: area.id,
+
+    name:
+      area.name,
+
+    propertySpaceId:
+      area.propertySpaceId ??
+      "",
+
+    growingAreaKind:
+      area.growingAreaKind ??
+      "custom",
+
+    widthM:
+      String(
+        area.widthM ??
+          Math.max(
+            0.1,
+            area.width /
+              20,
+          ),
+      ),
+
+    depthM:
+      String(
+        area.depthM ??
+          Math.max(
+            0.1,
+            area.height /
+              20,
+          ),
+      ),
+
+    rotation:
+      String(
+        area.rotation ??
+          0,
+      ),
+  });
+
+  setGrowingAreaError(
+    "",
+  );
+}
 
   async function handleAddTree() {
     setObjectError("");
@@ -830,7 +1501,8 @@ async function handleCreateGrowingArea() {
       )?.label ??
       "Growing area";
 
-    await createGardenArea({
+    const newAreaId =
+  await createGardenArea({
       name,
 
       description:
@@ -873,8 +1545,43 @@ async function handleCreateGrowingArea() {
     });
 
     setShowGrowingAreaForm(
-      false,
-    );
+  false,
+);
+
+setIsGrowingAreaEditing(
+  true,
+);
+
+setIsObjectEditing(
+  false,
+);
+
+setSelectedGrowingAreaId(
+  newAreaId,
+);
+
+setGrowingAreaEditDraft({
+  id:
+    newAreaId,
+
+  name,
+
+  propertySpaceId:
+    parentSpace.id,
+
+  growingAreaKind:
+    kind,
+
+  widthM:
+    String(widthM),
+
+  depthM:
+    String(depthM),
+
+  rotation:
+    String(rotation),
+});
+
   } catch (error) {
     console.error(
       "Unable to create growing area:",
@@ -1087,6 +1794,515 @@ async function handleCreateGrowingArea() {
       );
     });
   }
+
+  function startGrowingAreaDrag(
+  event:
+    ReactPointerEvent<HTMLButtonElement>,
+  area: GardenArea,
+  space: PropertySpace,
+) {
+  if (
+    !isGrowingAreaEditing
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (
+    area.layoutX ===
+      undefined ||
+    area.layoutY ===
+      undefined
+  ) {
+    return;
+  }
+
+  selectGrowingArea(
+    area,
+  );
+
+  setGrowingAreaDrag({
+    id: area.id,
+
+    startClientX:
+      event.clientX,
+
+    startClientY:
+      event.clientY,
+
+    startX:
+      area.layoutX,
+
+    startY:
+      area.layoutY,
+
+    parentRotation:
+      space.rotation ??
+      0,
+
+    parentWidthPx:
+      space.widthM *
+      pixelsPerMetre,
+
+    parentDepthPx:
+      space.depthM *
+      pixelsPerMetre,
+  });
+
+  setGrowingAreaDragPreview({
+    id: area.id,
+
+    x:
+      area.layoutX,
+
+    y:
+      area.layoutY,
+  });
+
+  event.currentTarget
+    .setPointerCapture(
+      event.pointerId,
+    );
+}
+
+function moveGrowingAreaDrag(
+  event:
+    ReactPointerEvent<HTMLButtonElement>,
+  area: GardenArea,
+  space: PropertySpace,
+) {
+  if (
+    !isGrowingAreaEditing ||
+    growingAreaDrag?.id !==
+      area.id
+  ) {
+    return;
+  }
+
+  const widthM =
+    area.widthM ??
+    area.width / 20;
+
+  const depthM =
+    area.depthM ??
+    area.height / 20;
+
+  const deltaX =
+    event.clientX -
+    growingAreaDrag
+      .startClientX;
+
+  const deltaY =
+    event.clientY -
+    growingAreaDrag
+      .startClientY;
+
+  /*
+   * The PropertySpace itself may
+   * be rotated. Convert screen
+   * movement back into its local
+   * coordinate system first.
+   */
+  const radians =
+    (
+      -growingAreaDrag
+        .parentRotation *
+      Math.PI
+    ) /
+    180;
+
+  const localDeltaX =
+    deltaX *
+      Math.cos(
+        radians,
+      ) -
+    deltaY *
+      Math.sin(
+        radians,
+      );
+
+  const localDeltaY =
+    deltaX *
+      Math.sin(
+        radians,
+      ) +
+    deltaY *
+      Math.cos(
+        radians,
+      );
+
+  const proposedX =
+    growingAreaDrag
+      .startX +
+    localDeltaX /
+      growingAreaDrag
+        .parentWidthPx;
+
+  const proposedY =
+    growingAreaDrag
+      .startY +
+    localDeltaY /
+      growingAreaDrag
+        .parentDepthPx;
+
+  const validPosition =
+    findValidGrowingAreaPosition(
+      space,
+      widthM,
+      depthM,
+      area.rotation ??
+        0,
+      proposedX,
+      proposedY,
+    );
+
+  if (!validPosition) {
+    return;
+  }
+
+  setGrowingAreaDragPreview({
+    id: area.id,
+
+    x:
+      validPosition.x,
+
+    y:
+      validPosition.y,
+  });
+}
+
+function finishGrowingAreaDrag(
+  event:
+    ReactPointerEvent<HTMLButtonElement>,
+  area: GardenArea,
+) {
+  if (
+    growingAreaDrag?.id !==
+    area.id
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (
+    event.currentTarget
+      .hasPointerCapture(
+        event.pointerId,
+      )
+  ) {
+    event.currentTarget
+      .releasePointerCapture(
+        event.pointerId,
+      );
+  }
+
+  const preview =
+    growingAreaDragPreview;
+
+  setGrowingAreaDrag(
+    null,
+  );
+
+  setGrowingAreaDragPreview(
+    null,
+  );
+
+  if (
+    !preview ||
+    preview.id !==
+      area.id
+  ) {
+    return;
+  }
+
+  void updateGardenArea(
+    area.id,
+    {
+      layoutX:
+        preview.x,
+
+      layoutY:
+        preview.y,
+    },
+  ).catch(
+    (error) => {
+      console.error(
+        "Unable to save growing area position:",
+        error,
+      );
+
+      setGrowingAreaError(
+        error instanceof Error
+          ? error.message
+          : "The new position could not be saved.",
+      );
+    },
+  );
+}
+
+async function handleSaveGrowingArea() {
+  if (
+    !selectedGrowingArea ||
+    !growingAreaEditDraft
+  ) {
+    return;
+  }
+
+  const parentSpace =
+    spaces.find(
+      (space) =>
+        space.id ===
+        growingAreaEditDraft
+          .propertySpaceId,
+    );
+
+  if (!parentSpace) {
+    setGrowingAreaError(
+      "Choose a property space.",
+    );
+
+    return;
+  }
+
+  const name =
+    growingAreaEditDraft
+      .name
+      .trim();
+
+  const widthM =
+    Number(
+      growingAreaEditDraft
+        .widthM,
+    );
+
+  const depthM =
+    Number(
+      growingAreaEditDraft
+        .depthM,
+    );
+
+  const rotation =
+    Number(
+      growingAreaEditDraft
+        .rotation,
+    );
+
+  if (!name) {
+    setGrowingAreaError(
+      "Give the growing area a name.",
+    );
+
+    return;
+  }
+
+  if (
+    !Number.isFinite(
+      widthM,
+    ) ||
+    widthM <= 0 ||
+    !Number.isFinite(
+      depthM,
+    ) ||
+    depthM <= 0 ||
+    !Number.isFinite(
+      rotation,
+    )
+  ) {
+    setGrowingAreaError(
+      "Check the dimensions and rotation.",
+    );
+
+    return;
+  }
+
+  const parentChanged =
+    parentSpace.id !==
+    selectedGrowingArea
+      .propertySpaceId;
+
+  const preferredX =
+    parentChanged
+      ? 0.5
+      : selectedGrowingArea
+          .layoutX ??
+        0.5;
+
+  const preferredY =
+    parentChanged
+      ? 0.5
+      : selectedGrowingArea
+          .layoutY ??
+        0.5;
+
+  const validPosition =
+    findValidGrowingAreaPosition(
+      parentSpace,
+      widthM,
+      depthM,
+      rotation,
+      preferredX,
+      preferredY,
+    );
+
+  if (!validPosition) {
+    setGrowingAreaError(
+      `${name} does not fit inside ${parentSpace.name}. Reduce its dimensions or choose another space.`,
+    );
+
+    return;
+  }
+
+  const kind =
+    growingAreaEditDraft
+      .growingAreaKind;
+
+  const kindLabel =
+    growingAreaKindOptions.find(
+      (option) =>
+        option.value ===
+        kind,
+    )?.label ??
+    "Growing area";
+
+  setGrowingAreaError("");
+  setIsGrowingAreaSaving(
+    true,
+  );
+
+  try {
+    await updateGardenArea(
+      selectedGrowingArea.id,
+      {
+        name,
+
+        description:
+          `${kindLabel} in ${parentSpace.name}.`,
+
+        type:
+          getGardenAreaType(
+            kind,
+          ),
+
+        propertySpaceId:
+          parentSpace.id,
+
+        growingAreaKind:
+          kind,
+
+        widthM,
+        depthM,
+
+        rotation,
+
+        layoutX:
+          validPosition.x,
+
+        layoutY:
+          validPosition.y,
+
+        // Legacy compatibility.
+        width:
+          Math.round(
+            widthM * 20,
+          ),
+
+        height:
+          Math.round(
+            depthM * 20,
+          ),
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Unable to save growing area:",
+      error,
+    );
+
+    setGrowingAreaError(
+      error instanceof Error
+        ? error.message
+        : "The growing area could not be saved.",
+    );
+  } finally {
+    setIsGrowingAreaSaving(
+      false,
+    );
+  }
+}
+
+async function handleDeleteGrowingArea() {
+  if (
+    !selectedGrowingArea
+  ) {
+    return;
+  }
+
+  setGrowingAreaError("");
+  setIsGrowingAreaSaving(
+    true,
+  );
+
+  try {
+    const plantCount =
+      await getGardenPlantCount(
+        selectedGrowingArea.id,
+      );
+
+    if (
+      plantCount > 0
+    ) {
+      setGrowingAreaError(
+        `${selectedGrowingArea.name} contains ${plantCount} ${
+          plantCount === 1
+            ? "plant"
+            : "plants"
+        }. Move or remove those plants before deleting the growing area.`,
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete "${selectedGrowingArea.name}"?\n\nThis cannot be undone.`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await deleteGardenArea(
+      selectedGrowingArea.id,
+    );
+
+    setSelectedGrowingAreaId(
+      null,
+    );
+
+    setGrowingAreaEditDraft(
+      null,
+    );
+  } catch (error) {
+    console.error(
+      "Unable to delete growing area:",
+      error,
+    );
+
+    setGrowingAreaError(
+      error instanceof Error
+        ? error.message
+        : "The growing area could not be deleted.",
+    );
+  } finally {
+    setIsGrowingAreaSaving(
+      false,
+    );
+  }
+}
 
   async function handleSaveObject() {
     if (
@@ -1392,6 +2608,53 @@ async function handleCreateGrowingArea() {
         >
           + Fence
         </button>
+
+        <button
+  type="button"
+  className={
+    isGrowingAreaEditing
+      ? "saved-object-toolbar-button saved-object-toolbar-button-active"
+      : "saved-object-toolbar-button"
+  }
+  onClick={() => {
+    const next =
+      !isGrowingAreaEditing;
+
+    setIsGrowingAreaEditing(
+      next,
+    );
+
+    if (next) {
+      setIsObjectEditing(
+        false,
+      );
+
+      setSelectedObjectId(
+        null,
+      );
+
+      setObjectDraft(
+        null,
+      );
+    } else {
+      setSelectedGrowingAreaId(
+        null,
+      );
+
+      setGrowingAreaEditDraft(
+        null,
+      );
+    }
+
+    setGrowingAreaError(
+      "",
+    );
+  }}
+>
+  {isGrowingAreaEditing
+    ? "✓ Done with areas"
+    : "▦ Manage growing areas"}
+</button>
 
         <button
   type="button"
@@ -1839,53 +3102,128 @@ async function handleCreateGrowingArea() {
           area.growingAreaKind,
       );
 
-    return (
-      <button
-        key={area.id}
-        type="button"
-        className="saved-growing-area"
-        style={{
-          left: `${
-            area.layoutX! *
-            100
-          }%`,
+   const preview =
+  growingAreaDragPreview
+    ?.id ===
+  area.id
+    ? growingAreaDragPreview
+    : null;
 
-          top: `${
-            area.layoutY! *
-            100
-          }%`,
+const position =
+  preview ?? {
+    x:
+      area.layoutX!,
+    y:
+      area.layoutY!,
+  };
 
-          width: `${
-            area.widthM! *
-            pixelsPerMetre
-          }px`,
+const isSelected =
+  selectedGrowingAreaId ===
+  area.id;
 
-          height: `${
-            area.depthM! *
-            pixelsPerMetre
-          }px`,
+return (
+  <button
+    key={area.id}
+    type="button"
+    className={[
+      "saved-growing-area",
 
-          transform:
-            `translate(-50%, -50%) rotate(${area.rotation ?? 0}deg)`,
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
+      isGrowingAreaEditing
+        ? "saved-growing-area-editing"
+        : "",
 
-          navigate(
-            `/garden/${area.id}`,
-          );
-        }}
-      >
-        <span>
-          {kind?.icon ??
-            "🌱"}
-        </span>
+      isSelected
+        ? "saved-growing-area-selected"
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ")}
+    style={{
+      left: `${
+        position.x *
+        100
+      }%`,
 
-        <strong>
-          {area.name}
-        </strong>
-      </button>
-    );
+      top: `${
+        position.y *
+        100
+      }%`,
+
+      width: `${
+        area.widthM! *
+        pixelsPerMetre
+      }px`,
+
+      height: `${
+        area.depthM! *
+        pixelsPerMetre
+      }px`,
+
+      transform:
+        `translate(-50%, -50%) rotate(${area.rotation ?? 0}deg)`,
+    }}
+    onPointerDown={(
+      event,
+    ) =>
+      startGrowingAreaDrag(
+        event,
+        area,
+        space,
+      )
+    }
+    onPointerMove={(
+      event,
+    ) =>
+      moveGrowingAreaDrag(
+        event,
+        area,
+        space,
+      )
+    }
+    onPointerUp={(
+      event,
+    ) =>
+      finishGrowingAreaDrag(
+        event,
+        area,
+      )
+    }
+    onPointerCancel={(
+      event,
+    ) =>
+      finishGrowingAreaDrag(
+        event,
+        area,
+      )
+    }
+    onClick={(event) => {
+      event.stopPropagation();
+
+      if (
+        isGrowingAreaEditing
+      ) {
+        selectGrowingArea(
+          area,
+        );
+
+        return;
+      }
+
+      navigate(
+        `/garden/${area.id}`,
+      );
+    }}
+  >
+    <span>
+      {kind?.icon ??
+        "🌱"}
+    </span>
+
+    <strong>
+      {area.name}
+    </strong>
+  </button>
+);
   })}
                 </div>
 
@@ -2252,6 +3590,313 @@ async function handleCreateGrowingArea() {
             </div>
           </section>
         )}
+        {isGrowingAreaEditing &&
+  selectedGrowingArea &&
+  growingAreaEditDraft && (
+    <section className="saved-object-inspector">
+      <div className="saved-object-inspector-heading">
+        <div>
+          <strong>
+            {
+              selectedGrowingArea
+                .name
+            }
+          </strong>
+
+          <small>
+            Edit this growing
+            area.
+          </small>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedGrowingAreaId(
+              null,
+            );
+
+            setGrowingAreaEditDraft(
+              null,
+            );
+
+            setGrowingAreaError(
+              "",
+            );
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="saved-object-inspector-fields">
+        <label>
+          Name
+
+          <div className="saved-object-input">
+            <input
+              type="text"
+              value={
+                growingAreaEditDraft
+                  .name
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          name:
+                            event
+                              .target
+                              .value,
+                        }
+                      : current,
+                )
+              }
+            />
+          </div>
+        </label>
+
+        <label>
+          Located in
+
+          <div className="saved-object-input">
+            <select
+              value={
+                growingAreaEditDraft
+                  .propertySpaceId
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          propertySpaceId:
+                            event
+                              .target
+                              .value,
+                        }
+                      : current,
+                )
+              }
+            >
+              {spaces.map(
+                (space) => (
+                  <option
+                    key={
+                      space.id
+                    }
+                    value={
+                      space.id
+                    }
+                  >
+                    {
+                      space.name
+                    }
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+        </label>
+
+        <label>
+          Type
+
+          <div className="saved-object-input">
+            <select
+              value={
+                growingAreaEditDraft
+                  .growingAreaKind
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          growingAreaKind:
+                            event
+                              .target
+                              .value as GrowingAreaKind,
+                        }
+                      : current,
+                )
+              }
+            >
+              {growingAreaKindOptions.map(
+                (option) => (
+                  <option
+                    key={
+                      option.value
+                    }
+                    value={
+                      option.value
+                    }
+                  >
+                    {option.icon}{" "}
+                    {
+                      option.label
+                    }
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+        </label>
+
+        <label>
+          Width
+
+          <div className="saved-object-input">
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={
+                growingAreaEditDraft
+                  .widthM
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          widthM:
+                            event
+                              .target
+                              .value,
+                        }
+                      : current,
+                )
+              }
+            />
+
+            <span>m</span>
+          </div>
+        </label>
+
+        <label>
+          Depth
+
+          <div className="saved-object-input">
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={
+                growingAreaEditDraft
+                  .depthM
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          depthM:
+                            event
+                              .target
+                              .value,
+                        }
+                      : current,
+                )
+              }
+            />
+
+            <span>m</span>
+          </div>
+        </label>
+
+        <label>
+          Rotation
+
+          <div className="saved-object-input">
+            <input
+              type="number"
+              min="0"
+              max="359"
+              step="1"
+              value={
+                growingAreaEditDraft
+                  .rotation
+              }
+              onChange={(event) =>
+                setGrowingAreaEditDraft(
+                  (current) =>
+                    current
+                      ? {
+                          ...current,
+
+                          rotation:
+                            event
+                              .target
+                              .value,
+                        }
+                      : current,
+                )
+              }
+            />
+
+            <span>°</span>
+          </div>
+        </label>
+      </div>
+
+      {growingAreaError && (
+        <p className="saved-object-error">
+          {growingAreaError}
+        </p>
+      )}
+
+      <div className="saved-object-inspector-actions">
+        <button
+          type="button"
+          className="saved-object-delete-button"
+          onClick={() => {
+            void handleDeleteGrowingArea();
+          }}
+        >
+          Delete
+        </button>
+
+        <button
+          type="button"
+          className="saved-object-toolbar-button"
+          onClick={() =>
+            navigate(
+              `/garden/${selectedGrowingArea.id}`,
+            )
+          }
+        >
+          Open area
+        </button>
+
+        <button
+          type="button"
+          className="saved-object-save-button"
+          disabled={
+            isGrowingAreaSaving
+          }
+          onClick={() => {
+            void handleSaveGrowingArea();
+          }}
+        >
+          {isGrowingAreaSaving
+            ? "Saving…"
+            : "Save changes"}
+        </button>
+      </div>
+    </section>
+  )}
     </section>
   );
 }

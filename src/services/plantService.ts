@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -48,6 +49,19 @@ function getPlantsCollection(gardenId: string) {
     gardenId,
     "plants",
   );
+}
+
+export async function getGardenPlantCount(
+  gardenId: string,
+): Promise<number> {
+  const snapshot =
+    await getDocs(
+      getPlantsCollection(
+        gardenId,
+      ),
+    );
+
+  return snapshot.size;
 }
 
 export async function addPlantToGarden(
