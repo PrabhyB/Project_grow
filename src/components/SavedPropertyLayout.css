@@ -567,3 +567,17 @@ strong {
 
   white-space: nowrap;
 }
+
+.saved-growing-area-editing {
+  cursor: grab;
+  touch-action: none;
+}
+
+.saved-growing-area-editing:active {
+  cursor: grabbing;
+}
+
+.saved-growing-area-selected {
+  outline: 3px solid #31713d;
+  outline-offset: 3px;
+}
