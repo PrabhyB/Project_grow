@@ -5,6 +5,7 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
+  setDoc,
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -41,9 +42,18 @@ export type PropertyObject = {
   x: number;
   y: number;
 
+  layoutX?: number;
+layoutY?: number;
+
   // Top-down dimensions on the map.
   width: number;
   height: number;
+
+  widthM?: number;
+depthM?: number;
+
+shapeDetailWidthM?: number;
+shapeDetailDepthM?: number;
 
   rotation: number;
 
@@ -168,5 +178,35 @@ export async function deletePropertyObject(
 ) {
   await deleteDoc(
     getPropertyObjectReference(objectId),
+  );
+}
+
+export async function saveSetupStructure(
+  object: NewPropertyObject,
+) {
+  await setDoc(
+    getPropertyObjectReference(
+      "setup-main-structure",
+    ),
+    {
+      ...object,
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp(),
+    },
+    {
+      merge: true,
+    },
+  );
+}
+
+export async function deleteSetupStructure() {
+  await deleteDoc(
+    getPropertyObjectReference(
+      "setup-main-structure",
+    ),
   );
 }

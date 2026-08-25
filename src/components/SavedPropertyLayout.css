@@ -1,0 +1,377 @@
+.saved-property-layout-card {
+  padding: 20px;
+  border: 1px solid #dce7da;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.saved-property-layout-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.saved-property-layout-heading h2 {
+  margin: 0;
+  color: #264a30;
+}
+
+.saved-property-layout-heading p {
+  margin: 3px 0 0;
+  color: #6e796f;
+  font-size: 0.88rem;
+}
+
+.saved-property-layout-canvas {
+  position: relative;
+  min-height: 500px;
+  overflow: hidden;
+  border: 2px solid #cbdcc9;
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      rgb(69 116 77 / 6%) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgb(69 116 77 / 6%) 1px,
+      transparent 1px
+    ),
+    #f6faf4;
+
+  background-size:
+    24px 24px;
+}
+
+.saved-layout-item {
+  position: absolute;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+
+  text-align: center;
+}
+
+.saved-layout-rotatable {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+}
+
+.saved-layout-item svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.saved-layout-structure
+  polygon {
+  fill: #d4d7d2;
+  stroke: #777e78;
+  stroke-width: 0.15;
+}
+
+.saved-layout-space
+  polygon {
+  fill:
+    rgb(
+      91 163 89 /
+      28%
+    );
+
+  stroke: #4e8b54;
+  stroke-width: 0.15;
+}
+
+.saved-layout-item strong {
+  display: block;
+  margin-top: 4px;
+  color: #31483a;
+  font-size: 0.78rem;
+}
+
+.saved-layout-item small {
+  display: block;
+  color: #6b776e;
+  font-size: 0.68rem;
+}
+
+.saved-layout-north {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 10;
+
+  display: grid;
+  place-items: center;
+
+  width: 50px;
+  height: 50px;
+
+  transform-origin: center;
+
+  color: #376f42;
+  font-size: 1.7rem;
+  font-weight: 900;
+}
+
+.saved-layout-north span {
+  font-size: 0.72rem;
+}
+
+@media (max-width: 700px) {
+  .saved-property-layout-canvas {
+    min-height: 430px;
+  }
+}
+
+.saved-property-edit-button {
+  flex: 0 0 auto;
+
+  padding: 9px 14px;
+
+  border: 1px solid #aac9ae;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #33683e;
+
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.saved-property-edit-button:hover {
+  background: #f1f8f1;
+}
+
+@media (max-width: 600px) {
+  .saved-property-layout-heading {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .saved-property-edit-button {
+    white-space: nowrap;
+  }
+}
+
+.saved-property-object-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.saved-object-toolbar-button {
+  padding: 8px 12px;
+  border: 1px solid #c8d9c8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #355f3c;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saved-object-toolbar-button:hover {
+  background: #f2f8f1;
+}
+
+.saved-object-toolbar-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.saved-object-toolbar-button-active {
+  background: #e7f4e5;
+  border-color: #78a97d;
+}
+
+.saved-object-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #fff0ee;
+  color: #8b3029;
+  font-size: 0.84rem;
+}
+
+.saved-layout-object {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.saved-layout-object-editing {
+  cursor: grab;
+  touch-action: none;
+}
+
+.saved-layout-object-editing:active {
+  cursor: grabbing;
+}
+
+.saved-object-shape {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+  display: grid;
+  place-items: center;
+}
+
+.saved-layout-tree .saved-object-shape {
+  border: 2px solid #4e8b54;
+  border-radius: 50%;
+  background: rgb(91 163 89 / 24%);
+}
+
+.saved-tree-icon {
+  font-size: 2rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.saved-layout-fence .saved-object-shape {
+  min-height: 5px;
+  border: 1px solid #6f5c49;
+  border-radius: 3px;
+  background: #92785e;
+}
+
+.saved-layout-object-selected
+.saved-object-shape {
+  outline: 3px solid #397845;
+  outline-offset: 3px;
+}
+
+.saved-object-label {
+  display: block;
+  margin-top: 3px;
+  color: #32473a;
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.saved-object-help {
+  margin: 10px 0 0;
+  color: #667368;
+  font-size: 0.78rem;
+}
+
+.saved-object-inspector {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #d4e2d3;
+  border-radius: 12px;
+  background: #f8fbf7;
+}
+
+.saved-object-inspector-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.saved-object-inspector-heading strong,
+.saved-object-inspector-heading small {
+  display: block;
+}
+
+.saved-object-inspector-heading small {
+  margin-top: 2px;
+  color: #6b766d;
+  font-size: 0.75rem;
+}
+
+.saved-object-inspector-heading button {
+  border: 0;
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.saved-object-inspector-fields {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(130px, 1fr)
+    );
+  gap: 10px;
+}
+
+.saved-object-inspector-fields label {
+  color: #435248;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.saved-object-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.saved-object-input input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #c9d6c8;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.saved-object-input span {
+  color: #718075;
+  font-size: 0.75rem;
+}
+
+.saved-object-inspector-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.saved-object-delete-button,
+.saved-object-save-button {
+  padding: 8px 13px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.saved-object-delete-button {
+  border: 1px solid #d4a5a2;
+  background: #fff;
+  color: #8c3731;
+}
+
+.saved-object-save-button {
+  border: 1px solid #699c70;
+  background: #3f7e49;
+  color: #fff;
+}
+
+.saved-object-save-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

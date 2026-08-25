@@ -7,12 +7,15 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+
 import {
   createPropertyConfig,
   subscribeToPropertyConfig,
   replaceSetupPropertySpaces,
   resetPropertySetupForDevelopment,
-  updatePropertyConfig,  
+  updatePropertyConfig, 
+  subscribeToPropertySpaces,
+  type PropertySpace, 
   type PropertyType,
   type SpaceType,
   type NewPropertySpace,
@@ -20,8 +23,12 @@ type PropertyPoint,
 type SpaceShapeType,  
 } from "../services/propertyService";
 
-import type {
-  StructureKind,
+import {
+  deleteSetupStructure,
+  saveSetupStructure,
+  subscribeToPropertyObjects,
+  type PropertyObject,
+  type StructureKind,
 } from "../services/propertyObjectService";
 
 import "./PropertySetupPage.css";
@@ -819,6 +826,37 @@ function buildSpaceBoundary(
   return null;
 }
 
+function getBoundaryDimensions(
+  boundary: PropertyPoint[] | undefined,
+) {
+  if (
+    !boundary ||
+    boundary.length === 0
+  ) {
+    return null;
+  }
+
+  const xValues =
+    boundary.map(
+      (point) => point.x,
+    );
+
+  const yValues =
+    boundary.map(
+      (point) => point.y,
+    );
+
+  return {
+    width:
+      Math.max(...xValues) -
+      Math.min(...xValues),
+
+    depth:
+      Math.max(...yValues) -
+      Math.min(...yValues),
+  };
+}
+
 const spacesByPropertyType: Record<
   PropertyType,
   SpaceType[]
@@ -1097,6 +1135,14 @@ const layoutCanvasRef =
     null,
   );
 
+  const isEditMode =
+  new URLSearchParams(
+    window.location.search,
+  ).get("edit") === "1";
+
+const editLayoutLoaded =
+  useRef(false);
+
 const [
   layoutPositions,
   setLayoutPositions,
@@ -1331,12 +1377,375 @@ function finishLayoutDrag(
 ]);
 
   useEffect(() => {
+  if (
+    !isEditMode ||
+    editLayoutLoaded.current
+  ) {
+    return;
+  }
+
+  let savedSpaces:
+    PropertySpace[] | null =
+    null;
+
+  let savedObjects:
+    PropertyObject[] | null =
+    null;
+
+  function tryLoadSavedLayout() {
+    if (
+      savedSpaces === null ||
+      savedObjects === null ||
+      editLayoutLoaded.current
+    ) {
+      return;
+    }
+
+    const setupSpaces =
+      savedSpaces.filter(
+        (space) =>
+          space.id.startsWith(
+            "setup-",
+          ),
+      );
+
+    const drafts: Partial<
+      Record<
+        SpaceType,
+        SpaceShapeDraft
+      >
+    > = {};
+
+    const positions: Record<
+      string,
+      LayoutPosition
+    > = {};
+
+    const loadedSpaceTypes:
+      SpaceType[] = [];
+
+    setupSpaces.forEach(
+      (space) => {
+        loadedSpaceTypes.push(
+          space.type,
+        );
+
+        drafts[space.type] = {
+          name:
+            space.name,
+
+          shapeType:
+            space.shapeType,
+
+          widthM:
+            String(
+              space.widthM,
+            ),
+
+          depthM:
+            String(
+              space.depthM,
+            ),
+
+          detailWidthM:
+            space
+              .shapeDetailWidthM !==
+            undefined
+              ? String(
+                  space
+                    .shapeDetailWidthM,
+                )
+              : "",
+
+          detailDepthM:
+            space
+              .shapeDetailDepthM !==
+            undefined
+              ? String(
+                  space
+                    .shapeDetailDepthM,
+                )
+              : "",
+
+          elevationM:
+            String(
+              space.elevationM ??
+                0,
+            ),
+
+          customPoints:
+            space.shapeType ===
+            "custom"
+              ? space.boundary
+              : [],
+        };
+
+        positions[
+          `space:${space.type}`
+        ] = {
+          x:
+            space.layoutX ??
+            0.5,
+
+          y:
+            space.layoutY ??
+            0.5,
+
+          rotation:
+            space.rotation ??
+            0,
+        };
+      },
+    );
+
+    setSelectedSpaces(
+      loadedSpaceTypes,
+    );
+
+    setSpaceDimensionDrafts(
+      drafts,
+    );
+
+    const mainStructure =
+      savedObjects.find(
+        (object) =>
+          object.id ===
+          "setup-main-structure",
+      );
+
+    if (mainStructure) {
+      const boundaryDimensions =
+        getBoundaryDimensions(
+          mainStructure.boundary,
+        );
+
+      const widthM =
+        mainStructure.widthM ??
+        boundaryDimensions?.width ??
+        mainStructure.width /
+          20;
+
+      const depthM =
+        mainStructure.depthM ??
+        boundaryDimensions?.depth ??
+        mainStructure.height /
+          20;
+
+      const savedShape =
+        mainStructure.shapeType ??
+        "rectangle";
+
+      const hasShapeDetails =
+        mainStructure
+          .shapeDetailWidthM !==
+          undefined &&
+        mainStructure
+          .shapeDetailDepthM !==
+          undefined;
+
+      /*
+       * Older saved L/U/T shapes may
+       * not have their shape-detail
+       * measurements.
+       *
+       * In that case preserve their
+       * exact polygon by treating them
+       * as a custom outline.
+       */
+      const editableShape =
+        savedShape ===
+          "rectangle" ||
+        savedShape ===
+          "custom" ||
+        hasShapeDetails
+          ? savedShape
+          : "custom";
+
+      setStructureDraft({
+        enabled: true,
+
+        name:
+          mainStructure.name,
+
+        structureKind:
+          mainStructure
+            .structureKind ??
+          "other",
+
+        shapeType:
+          editableShape,
+
+        widthM:
+          String(widthM),
+
+        depthM:
+          String(depthM),
+
+        detailWidthM:
+          mainStructure
+            .shapeDetailWidthM !==
+          undefined
+            ? String(
+                mainStructure
+                  .shapeDetailWidthM,
+              )
+            : "",
+
+        detailDepthM:
+          mainStructure
+            .shapeDetailDepthM !==
+          undefined
+            ? String(
+                mainStructure
+                  .shapeDetailDepthM,
+              )
+            : "",
+
+        customPoints:
+          editableShape ===
+          "custom"
+            ? mainStructure
+                .boundary ?? []
+            : [],
+
+        physicalHeightM:
+          String(
+            mainStructure
+              .physicalHeightM ??
+              5,
+          ),
+
+        floorLevel:
+          String(
+            mainStructure
+              .floorLevel ??
+              0,
+          ),
+
+        baseElevationM:
+          String(
+            mainStructure
+              .baseElevationM ??
+              0,
+          ),
+
+        ceilingHeightM:
+          String(
+            mainStructure
+              .ceilingHeightM ??
+              2.4,
+          ),
+      });
+
+      positions.structure = {
+        x:
+          mainStructure.layoutX ??
+          0.5,
+
+        y:
+          mainStructure.layoutY ??
+          0.3,
+
+        rotation:
+          mainStructure.rotation ??
+          0,
+      };
+
+      /*
+       * Prevent the existing
+       * selectedType effect from
+       * replacing the loaded building
+       * with a default one.
+       */
+      if (
+  mainStructure.structureKind ===
+    "flat"
+) {
+  setStructureDraftPropertyType(
+    "flat",
+  );
+} else if (
+  mainStructure.structureKind ===
+    "maisonette"
+) {
+  setStructureDraftPropertyType(
+    "maisonette",
+  );
+} else if (
+  selectedType
+) {
+  setStructureDraftPropertyType(
+    selectedType,
+  );
+}
+    }
+
+    setLayoutPositions(
+      positions,
+    );
+
+    setCurrentStep(4);
+
+    setStepFourStage(
+      "layout",
+    );
+
+    editLayoutLoaded.current =
+      true;
+  }
+
+  const unsubscribeSpaces =
+    subscribeToPropertySpaces(
+      (spaces) => {
+        savedSpaces =
+          spaces;
+
+        tryLoadSavedLayout();
+      },
+      (loadError) => {
+        console.error(
+          "Unable to load saved property spaces:",
+          loadError,
+        );
+      },
+    );
+
+  const unsubscribeObjects =
+    subscribeToPropertyObjects(
+      (objects) => {
+        savedObjects =
+          objects;
+
+        tryLoadSavedLayout();
+      },
+      (loadError) => {
+        console.error(
+          "Unable to load saved property objects:",
+          loadError,
+        );
+      },
+    );
+
+  return () => {
+    unsubscribeSpaces();
+    unsubscribeObjects();
+  };
+}, [
+  isEditMode,
+  selectedType,
+]);
+
+  useEffect(() => {
     const unsubscribe =
       subscribeToPropertyConfig(
         (config) => {
           if (!config) {
             return;
           }
+
+          setNorthRotation(
+  config.northRotation ?? 0,
+);
 
           setPropertyName(config.name);
 
@@ -1716,6 +2125,317 @@ function handleCustomOutlinePointerDown(
   setError("");
 }
 
+async function handleSaveProperty() {
+  setError("");
+  setIsSaving(true);
+
+  try {
+    const finalSpaces:
+      NewPropertySpace[] = [];
+
+    for (
+      const spaceType of
+      selectedSpaces
+    ) {
+      const draft =
+        spaceDimensionDrafts[
+          spaceType
+        ];
+
+      const position =
+        layoutPositions[
+          `space:${spaceType}`
+        ];
+
+      if (
+        !draft ||
+        !position
+      ) {
+        throw new Error(
+          "One of the property spaces is missing its layout position.",
+        );
+      }
+
+      const widthM =
+        Number(
+          draft.widthM,
+        );
+
+      const depthM =
+        Number(
+          draft.depthM,
+        );
+
+      const elevationM =
+        Number(
+          draft.elevationM ||
+            "0",
+        );
+
+      const boundary =
+        buildSpaceBoundary(
+          draft,
+        );
+
+      if (
+        !boundary ||
+        !Number.isFinite(
+          widthM,
+        ) ||
+        widthM <= 0 ||
+        !Number.isFinite(
+          depthM,
+        ) ||
+        depthM <= 0
+      ) {
+        throw new Error(
+          `Check the measurements for ${draft.name}.`,
+        );
+      }
+
+      finalSpaces.push({
+        name:
+          draft.name.trim(),
+
+        type: spaceType,
+
+        widthM,
+        depthM,
+
+        shapeType:
+          draft.shapeType,
+
+        boundary,
+
+        ...(draft.detailWidthM.trim()
+  ? {
+      shapeDetailWidthM:
+        Number(
+          draft.detailWidthM,
+        ),
+    }
+  : {}),
+
+...(draft.detailDepthM.trim()
+  ? {
+      shapeDetailDepthM:
+        Number(
+          draft.detailDepthM,
+        ),
+    }
+  : {}),
+
+        elevationM,
+
+        // Kept for compatibility with
+        // the existing model.
+        x: 0,
+        y: 0,
+
+        // Actual final layout.
+        layoutX:
+          position.x,
+
+        layoutY:
+          position.y,
+
+        rotation:
+          position.rotation,
+      });
+    }
+
+    // Save the final version of
+    // all spaces again because the
+    // user may have changed their
+    // dimensions on the layout page.
+    await replaceSetupPropertySpaces(
+      finalSpaces,
+    );
+
+    if (
+      structureDraft.enabled
+    ) {
+      const structurePosition =
+        layoutPositions.structure;
+
+      if (
+        !structurePosition
+      ) {
+        throw new Error(
+          "The building is missing its layout position.",
+        );
+      }
+
+      const structureWidth =
+        Number(
+          structureDraft.widthM,
+        );
+
+      const structureDepth =
+        Number(
+          structureDraft.depthM,
+        );
+
+      const structureBoundary =
+        buildStructureBoundary(
+          structureDraft,
+        );
+
+      if (
+        !structureBoundary ||
+        !Number.isFinite(
+          structureWidth,
+        ) ||
+        structureWidth <= 0 ||
+        !Number.isFinite(
+          structureDepth,
+        ) ||
+        structureDepth <= 0
+      ) {
+        throw new Error(
+          "Check the building measurements before saving.",
+        );
+      }
+
+      const isFlatLike =
+        structureDraft
+          .structureKind ===
+          "flat" ||
+        structureDraft
+          .structureKind ===
+          "maisonette";
+
+      await saveSetupStructure({
+  type: "house",
+
+  name:
+    structureDraft.name.trim(),
+
+  structureKind:
+    structureDraft.structureKind,
+
+  shapeType:
+    structureDraft.shapeType,
+
+  boundary:
+    structureBoundary,
+
+  widthM:
+    structureWidth,
+
+  depthM:
+    structureDepth,
+
+  ...(structureDraft
+    .detailWidthM
+    .trim()
+    ? {
+        shapeDetailWidthM:
+          Number(
+            structureDraft
+              .detailWidthM,
+          ),
+      }
+    : {}),
+
+  ...(structureDraft
+    .detailDepthM
+    .trim()
+    ? {
+        shapeDetailDepthM:
+          Number(
+            structureDraft
+              .detailDepthM,
+          ),
+      }
+    : {}),
+
+  // Existing legacy map values.
+  x: 300,
+  y: 180,
+
+  width:
+    structureWidth * 20,
+
+  height:
+    structureDepth * 20,
+
+  // New saved layout.
+  layoutX:
+    structurePosition.x,
+
+  layoutY:
+    structurePosition.y,
+
+  rotation:
+    structurePosition.rotation,
+
+  physicalHeightM:
+    isFlatLike
+      ? Number(
+          structureDraft
+            .ceilingHeightM,
+        )
+      : Number(
+          structureDraft
+            .physicalHeightM,
+        ),
+
+  baseElevationM:
+    isFlatLike
+      ? Number(
+          structureDraft
+            .baseElevationM,
+        )
+      : 0,
+
+  ...(isFlatLike
+    ? {
+        floorLevel:
+          Number(
+            structureDraft
+              .floorLevel,
+          ),
+
+        ceilingHeightM:
+          Number(
+            structureDraft
+              .ceilingHeightM,
+          ),
+      }
+    : {}),
+});
+    } else {
+      await deleteSetupStructure();
+    }
+
+    // This is the switch that tells
+    // the rest of GrowHub that the
+    // new property layout is ready.
+    await updatePropertyConfig({
+      northRotation,
+      setupComplete: true,
+    });
+
+    window.location.assign(
+      "/dashboard",
+    );
+  } catch (saveError) {
+    console.error(
+      "Unable to save property:",
+      saveError,
+    );
+
+    setError(
+      saveError instanceof Error
+        ? saveError.message
+        : "The property could not be saved.",
+    );
+  } finally {
+    setIsSaving(false);
+  }
+}
+
 async function handleStepThreeSubmit(
   event: FormEvent<HTMLFormElement>,
 ) {
@@ -2085,16 +2805,16 @@ const layoutPixelsPerMetre =
           </p>
 
           <h1>
-            Arrange your property
-          </h1>
+  {isEditMode
+    ? "Edit your property"
+    : "Arrange your property"}
+</h1>
 
           <p>
-            This is the first view
-            of your property map.
-            We'll position your
-            building and growing
-            spaces here.
-          </p>
+  {isEditMode
+    ? "Move, resize or rotate your existing property layout, then save your changes."
+    : "This is the first view of your property map. Position your building and spaces here before saving."}
+</p>
         </header>
 
         <div className="property-layout-toolbar">
@@ -2199,72 +2919,69 @@ const layoutPixelsPerMetre =
             <span>m</span>
           </div>
         </label>
+<label>
+  Depth
 
-        <label>
-          Depth
+  <div className="measurement-input">
+    <input
+      type="number"
+      min="0.1"
+      step="0.1"
+      value={
+        structureDraft.depthM
+      }
+      onChange={(event) =>
+        setStructureDraft(
+          (current) => ({
+            ...current,
 
-          <div className="measurement-input">
-            <input
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={
-                structureDraft.depthM
-              }
-              onChange={(event) =>
-                setStructureDraft(
-                  (current) => ({
-                    ...current,
+            depthM:
+              event.target.value,
+          }),
+        )
+      }
+    />
 
-                    depthM:
-                      event.target
-                        .value,
-                  }),
-                )
-              }
-            />
+    <span>m</span>
+  </div>
+</label>
 
-            <span>m</span>
-          </div>
-        </label>
+<label>
+  Rotation
 
-        <label>
-          Rotation
+  <div className="measurement-input">
+    <input
+      type="number"
+      min="0"
+      max="359"
+      step="1"
+      value={
+        layoutPositions
+          .structure
+          ?.rotation ?? 0
+      }
+      onChange={(event) =>
+        setLayoutPositions(
+          (current) => ({
+            ...current,
 
-          <div className="measurement-input">
-            <input
-              type="number"
-              min="0"
-              max="359"
-              step="1"
-              value={
-                layoutPositions
-                  .structure
-                  ?.rotation ?? 0
-              }
-              onChange={(event) =>
-                setLayoutPositions(
-                  (current) => ({
-                    ...current,
+            structure: {
+              ...current.structure,
 
-                    structure: {
-                      ...current.structure,
+              rotation:
+                Number(
+                  event.target.value,
+                ),
+            },
+          }),
+        )
+      }
+    />
 
-                      rotation:
-                        Number(
-                          event
-                            .target
-                            .value,
-                        ),
-                    },
-                  }),
-                )
-              }
-            />
-
-            <span>°</span>
-          </div>
-        </label>
+    <span>°</span>
+  </div>
+</label>
+        
       </div>
     )}
 
@@ -2661,6 +3378,12 @@ if (!position) {
           draggable and rotatable.
         </p>
 
+        {error && (
+  <p className="property-setup-error">
+    {error}
+  </p>
+)}
+
         <footer className="property-setup-actions">
           <button
             className="property-setup-back"
@@ -2679,19 +3402,19 @@ if (!position) {
           </span>
 
           <button
-            className="property-setup-continue"
-            type="button"
-            onClick={() => {
-              console.log({
-                northRotation,
-                structureDraft,
-                selectedSpaces,
-                spaceDimensionDrafts,
-              });
-            }}
-          >
-            Save property
-          </button>
+  className="property-setup-continue"
+  type="button"
+  disabled={isSaving}
+  onClick={() => {
+    void handleSaveProperty();
+  }}
+>
+  {isSaving
+  ? "Saving changes…"
+  : isEditMode
+    ? "Save changes"
+    : "Save property"}
+</button>
         </footer>
       </section>
     </main>
@@ -3507,7 +4230,10 @@ if (currentStep === 3) {
       setIsResettingSetup(true);
 
       try {
-        await resetPropertySetupForDevelopment();
+        await Promise.all([
+  resetPropertySetupForDevelopment(),
+  deleteSetupStructure(),
+]);
 
         window.location.href =
           "/setup-property";

@@ -36,6 +36,9 @@ import {
   type PropertyObjectType,
 } from "../services/propertyObjectService";
 
+import SavedPropertyLayout
+  from "../components/SavedPropertyLayout";
+
 type DashboardPlant = GardenPlant & {
   gardenId: string;
   gardenName: string;
@@ -552,6 +555,8 @@ async function handlePropertyObjectHeightChange(
     );
   }}
 />
+<SavedPropertyLayout
+  fallback={
         <PropertyMap
   zones={liveGardenZones}
   propertyObjects={propertyObjects}
@@ -584,6 +589,8 @@ onChangePropertyObjectHeight={
   handlePropertyObjectHeightChange
 }
 />
+  }
+  />
       </main>
       {selectedGarden && (
   <GardenDetailsPanel
@@ -594,6 +601,7 @@ onChangePropertyObjectHeight={
     }}
   />
 )}
+
     </div>
   );
 }
