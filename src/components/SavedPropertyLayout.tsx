@@ -23,6 +23,18 @@ import {
   type PropertyObject,
 } from "../services/propertyObjectService";
 
+import {
+  createGardenArea,
+  subscribeToGardens,
+  type GardenArea,
+  type GardenAreaType,
+  type GrowingAreaKind,
+} from "../services/gardenService";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import "./SavedPropertyLayout.css";
 
 type SavedPropertyLayoutProps = {
@@ -153,9 +165,103 @@ function getObjectPosition(
   };
 }
 
+type GrowingAreaDraft = {
+  name: string;
+
+  propertySpaceId:
+    string;
+
+  growingAreaKind:
+    GrowingAreaKind;
+
+  widthM: string;
+  depthM: string;
+
+  rotation: string;
+};
+
+const growingAreaKindOptions: {
+  value: GrowingAreaKind;
+  label: string;
+  icon: string;
+}[] = [
+  {
+    value: "raised-bed",
+    label: "Raised bed",
+    icon: "🪴",
+  },
+  {
+    value:
+      "vegetable-patch",
+    label:
+      "Vegetable patch",
+    icon: "🥕",
+  },
+  {
+    value: "herb-bed",
+    label: "Herb bed",
+    icon: "🌿",
+  },
+  {
+    value: "border",
+    label: "Garden border",
+    icon: "🌷",
+  },
+  {
+    value: "containers",
+    label: "Container area",
+    icon: "🪴",
+  },
+  {
+    value: "grow-bags",
+    label: "Grow bags",
+    icon: "🍅",
+  },
+  {
+    value:
+      "greenhouse-bed",
+    label:
+      "Greenhouse bed",
+    icon: "🏡",
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    icon: "✏️",
+  },
+];
+
+function getGardenAreaType(
+  kind: GrowingAreaKind,
+): GardenAreaType {
+  if (
+    kind === "herb-bed"
+  ) {
+    return "herb";
+  }
+
+  if (
+    kind ===
+      "raised-bed" ||
+    kind ===
+      "vegetable-patch" ||
+    kind ===
+      "grow-bags" ||
+    kind ===
+      "greenhouse-bed"
+  ) {
+    return "vegetable";
+  }
+
+  return "garden";
+}
+
 export default function SavedPropertyLayout({
   fallback,
 }: SavedPropertyLayoutProps) {
+
+  const navigate =
+  useNavigate();
   const [
     config,
     setConfig,
@@ -185,6 +291,45 @@ export default function SavedPropertyLayout({
     isObjectEditing,
     setIsObjectEditing,
   ] = useState(false);
+
+  const [
+  growingAreas,
+  setGrowingAreas,
+] =
+  useState<GardenArea[]>([]);
+
+const [
+  showGrowingAreaForm,
+  setShowGrowingAreaForm,
+] = useState(false);
+
+const [
+  growingAreaDraft,
+  setGrowingAreaDraft,
+] =
+  useState<GrowingAreaDraft>({
+    name: "Growing Area",
+
+    propertySpaceId: "",
+
+    growingAreaKind:
+      "raised-bed",
+
+    widthM: "2",
+    depthM: "1",
+
+    rotation: "0",
+  });
+
+const [
+  growingAreaError,
+  setGrowingAreaError,
+] = useState("");
+
+const [
+  isGrowingAreaSaving,
+  setIsGrowingAreaSaving,
+] = useState(false);
 
   const [
     selectedObjectId,
@@ -318,6 +463,25 @@ export default function SavedPropertyLayout({
       unsubscribeObjects();
     };
   }, []);
+
+  useEffect(() => {
+  const unsubscribe =
+    subscribeToGardens(
+      (nextGardens) => {
+        setGrowingAreas(
+          nextGardens,
+        );
+      },
+      (error) => {
+        console.error(
+          "Unable to load growing areas:",
+          error,
+        );
+      },
+    );
+
+  return unsubscribe;
+}, []);
 
   const structure =
     useMemo(
@@ -521,6 +685,213 @@ export default function SavedPropertyLayout({
       setIsObjectSaving(false);
     }
   }
+
+  function openGrowingAreaCreator() {
+  const firstSpace =
+    spaces.find(
+      (space) =>
+        space.id.startsWith(
+          "setup-",
+        ),
+    ) ??
+    spaces[0];
+
+  if (!firstSpace) {
+    setGrowingAreaError(
+      "Add a property space before creating a growing area.",
+    );
+
+    return;
+  }
+
+  setGrowingAreaDraft({
+    name: "Growing Area",
+
+    propertySpaceId:
+      firstSpace.id,
+
+    growingAreaKind:
+      "raised-bed",
+
+    widthM: "2",
+    depthM: "1",
+
+    rotation: "0",
+  });
+
+  setGrowingAreaError("");
+
+  setShowGrowingAreaForm(
+    true,
+  );
+}
+
+async function handleCreateGrowingArea() {
+  const parentSpace =
+    spaces.find(
+      (space) =>
+        space.id ===
+        growingAreaDraft
+          .propertySpaceId,
+    );
+
+  if (!parentSpace) {
+    setGrowingAreaError(
+      "Choose where this growing area belongs.",
+    );
+
+    return;
+  }
+
+  const name =
+    growingAreaDraft
+      .name
+      .trim();
+
+  const widthM =
+    Number(
+      growingAreaDraft.widthM,
+    );
+
+  const depthM =
+    Number(
+      growingAreaDraft.depthM,
+    );
+
+  const rotation =
+    Number(
+      growingAreaDraft.rotation,
+    );
+
+  if (!name) {
+    setGrowingAreaError(
+      "Give the growing area a name.",
+    );
+
+    return;
+  }
+
+  if (
+    !Number.isFinite(
+      widthM,
+    ) ||
+    widthM <= 0 ||
+    !Number.isFinite(
+      depthM,
+    ) ||
+    depthM <= 0
+  ) {
+    setGrowingAreaError(
+      "Enter valid dimensions.",
+    );
+
+    return;
+  }
+
+  if (
+    widthM >
+      parentSpace.widthM ||
+    depthM >
+      parentSpace.depthM
+  ) {
+    setGrowingAreaError(
+      `${name} is larger than ${parentSpace.name}.`,
+    );
+
+    return;
+  }
+
+  if (
+    !Number.isFinite(
+      rotation,
+    )
+  ) {
+    setGrowingAreaError(
+      "Enter a valid rotation.",
+    );
+
+    return;
+  }
+
+  setGrowingAreaError("");
+  setIsGrowingAreaSaving(
+    true,
+  );
+
+  try {
+    const kind =
+      growingAreaDraft
+        .growingAreaKind;
+
+    const kindLabel =
+      growingAreaKindOptions.find(
+        (option) =>
+          option.value === kind,
+      )?.label ??
+      "Growing area";
+
+    await createGardenArea({
+      name,
+
+      description:
+        `${kindLabel} in ${parentSpace.name}.`,
+
+      type:
+        getGardenAreaType(
+          kind,
+        ),
+
+      propertySpaceId:
+        parentSpace.id,
+
+      growingAreaKind:
+        kind,
+
+      // Starts in the centre
+      // of its parent space.
+      layoutX: 0.5,
+      layoutY: 0.5,
+
+      widthM,
+      depthM,
+
+      rotation,
+
+      // Legacy compatibility.
+      x: 0,
+      y: 0,
+
+      width:
+        Math.round(
+          widthM * 20,
+        ),
+
+      height:
+        Math.round(
+          depthM * 20,
+        ),
+    });
+
+    setShowGrowingAreaForm(
+      false,
+    );
+  } catch (error) {
+    console.error(
+      "Unable to create growing area:",
+      error,
+    );
+
+    setGrowingAreaError(
+      error instanceof Error
+        ? error.message
+        : "The growing area could not be created.",
+    );
+  } finally {
+    setIsGrowingAreaSaving(
+      false,
+    );
+  }
+}
 
   function startObjectDrag(
     event:
@@ -1021,7 +1392,263 @@ export default function SavedPropertyLayout({
         >
           + Fence
         </button>
+
+        <button
+  type="button"
+  className="saved-object-toolbar-button"
+  disabled={
+    isGrowingAreaSaving
+  }
+  onClick={
+    openGrowingAreaCreator
+  }
+>
+  + 🌱 Growing area
+</button>
       </div>
+      {showGrowingAreaForm && (
+  <section className="growing-area-creator">
+    <div className="growing-area-creator-heading">
+      <div>
+        <strong>
+          Add growing area
+        </strong>
+
+        <small>
+          Choose which property
+          space contains it.
+        </small>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          setShowGrowingAreaForm(
+            false,
+          )
+        }
+      >
+        ×
+      </button>
+    </div>
+
+    <div className="growing-area-form-grid">
+      <label>
+        Name
+
+        <input
+          type="text"
+          value={
+            growingAreaDraft.name
+          }
+          onChange={(event) =>
+            setGrowingAreaDraft(
+              (current) => ({
+                ...current,
+
+                name:
+                  event.target
+                    .value,
+              }),
+            )
+          }
+        />
+      </label>
+
+      <label>
+        Located in
+
+        <select
+          value={
+            growingAreaDraft
+              .propertySpaceId
+          }
+          onChange={(event) =>
+            setGrowingAreaDraft(
+              (current) => ({
+                ...current,
+
+                propertySpaceId:
+                  event.target
+                    .value,
+              }),
+            )
+          }
+        >
+          {spaces.map(
+            (space) => (
+              <option
+                key={space.id}
+                value={space.id}
+              >
+                {space.name}
+              </option>
+            ),
+          )}
+        </select>
+      </label>
+
+      <label>
+        Type
+
+        <select
+          value={
+            growingAreaDraft
+              .growingAreaKind
+          }
+          onChange={(event) =>
+            setGrowingAreaDraft(
+              (current) => ({
+                ...current,
+
+                growingAreaKind:
+                  event.target
+                    .value as GrowingAreaKind,
+              }),
+            )
+          }
+        >
+          {growingAreaKindOptions.map(
+            (option) => (
+              <option
+                key={
+                  option.value
+                }
+                value={
+                  option.value
+                }
+              >
+                {option.icon}{" "}
+                {option.label}
+              </option>
+            ),
+          )}
+        </select>
+      </label>
+
+      <label>
+        Width
+
+        <div className="saved-object-input">
+          <input
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={
+              growingAreaDraft
+                .widthM
+            }
+            onChange={(event) =>
+              setGrowingAreaDraft(
+                (current) => ({
+                  ...current,
+
+                  widthM:
+                    event.target
+                      .value,
+                }),
+              )
+            }
+          />
+
+          <span>m</span>
+        </div>
+      </label>
+
+      <label>
+        Depth
+
+        <div className="saved-object-input">
+          <input
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={
+              growingAreaDraft
+                .depthM
+            }
+            onChange={(event) =>
+              setGrowingAreaDraft(
+                (current) => ({
+                  ...current,
+
+                  depthM:
+                    event.target
+                      .value,
+                }),
+              )
+            }
+          />
+
+          <span>m</span>
+        </div>
+      </label>
+
+      <label>
+        Rotation
+
+        <div className="saved-object-input">
+          <input
+            type="number"
+            min="0"
+            max="359"
+            step="1"
+            value={
+              growingAreaDraft
+                .rotation
+            }
+            onChange={(event) =>
+              setGrowingAreaDraft(
+                (current) => ({
+                  ...current,
+
+                  rotation:
+                    event.target
+                      .value,
+                }),
+              )
+            }
+          />
+
+          <span>°</span>
+        </div>
+      </label>
+    </div>
+
+    {growingAreaError && (
+      <p className="saved-object-error">
+        {growingAreaError}
+      </p>
+    )}
+
+    <div className="growing-area-creator-actions">
+      <button
+        type="button"
+        onClick={() =>
+          setShowGrowingAreaForm(
+            false,
+          )
+        }
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        disabled={
+          isGrowingAreaSaving
+        }
+        onClick={() => {
+          void handleCreateGrowingArea();
+        }}
+      >
+        {isGrowingAreaSaving
+          ? "Adding…"
+          : "Add growing area"}
+      </button>
+    </div>
+  </section>
+)}
 
       {objectError && (
         <p className="saved-object-error">
@@ -1190,6 +1817,76 @@ export default function SavedPropertyLayout({
                         .join(" ")}
                     />
                   </svg>
+                  {growingAreas
+  .filter(
+    (area) =>
+      area.propertySpaceId ===
+        space.id &&
+      area.layoutX !==
+        undefined &&
+      area.layoutY !==
+        undefined &&
+      area.widthM !==
+        undefined &&
+      area.depthM !==
+        undefined,
+  )
+  .map((area) => {
+    const kind =
+      growingAreaKindOptions.find(
+        (option) =>
+          option.value ===
+          area.growingAreaKind,
+      );
+
+    return (
+      <button
+        key={area.id}
+        type="button"
+        className="saved-growing-area"
+        style={{
+          left: `${
+            area.layoutX! *
+            100
+          }%`,
+
+          top: `${
+            area.layoutY! *
+            100
+          }%`,
+
+          width: `${
+            area.widthM! *
+            pixelsPerMetre
+          }px`,
+
+          height: `${
+            area.depthM! *
+            pixelsPerMetre
+          }px`,
+
+          transform:
+            `translate(-50%, -50%) rotate(${area.rotation ?? 0}deg)`,
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+
+          navigate(
+            `/garden/${area.id}`,
+          );
+        }}
+      >
+        <span>
+          {kind?.icon ??
+            "🌱"}
+        </span>
+
+        <strong>
+          {area.name}
+        </strong>
+      </button>
+    );
+  })}
                 </div>
 
                 <strong>
