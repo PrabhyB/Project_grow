@@ -59,6 +59,7 @@
 }
 
 .saved-layout-rotatable {
+  position: relative;
   width: 100%;
   height: 100%;
   transform-origin: center;
@@ -374,4 +375,195 @@
 .saved-object-save-button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.growing-area-creator {
+  margin-bottom: 14px;
+  padding: 14px;
+
+  border:
+    1px solid #d1dfcf;
+
+  border-radius: 12px;
+
+  background: #f7fbf6;
+}
+
+.growing-area-creator-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content:
+    space-between;
+
+  gap: 12px;
+
+  margin-bottom: 12px;
+}
+
+.growing-area-creator-heading
+strong,
+.growing-area-creator-heading
+small {
+  display: block;
+}
+
+.growing-area-creator-heading
+small {
+  margin-top: 3px;
+
+  color: #6c786e;
+
+  font-size: 0.75rem;
+}
+
+.growing-area-creator-heading
+button {
+  border: 0;
+
+  background:
+    transparent;
+
+  font-size: 1.2rem;
+
+  cursor: pointer;
+}
+
+.growing-area-form-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(
+        150px,
+        1fr
+      )
+    );
+
+  gap: 10px;
+}
+
+.growing-area-form-grid
+label {
+  color: #435248;
+
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.growing-area-form-grid
+input,
+.growing-area-form-grid
+select {
+  width: 100%;
+
+  margin-top: 5px;
+  padding: 8px;
+
+  border:
+    1px solid #c9d6c8;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  font: inherit;
+}
+
+.growing-area-creator-actions {
+  display: flex;
+
+  justify-content:
+    flex-end;
+
+  gap: 8px;
+
+  margin-top: 14px;
+}
+
+.growing-area-creator-actions
+button {
+  padding: 8px 13px;
+
+  border:
+    1px solid #9bb99f;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #37653f;
+
+  font: inherit;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.growing-area-creator-actions
+button:last-child {
+  background: #417f4b;
+  color: #ffffff;
+}
+
+.saved-growing-area {
+  position: absolute;
+
+  z-index: 6;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 4px;
+
+  overflow: hidden;
+
+  border:
+    2px solid #658d56;
+
+  border-radius: 6px;
+
+  background:
+    rgb(
+      194 219 152 /
+      82%
+    );
+
+  color: #29452f;
+
+  cursor: pointer;
+
+  transform-origin: center;
+}
+
+.saved-growing-area:hover {
+  outline:
+    2px solid
+    rgb(
+      61 116 69 /
+      45%
+    );
+
+  outline-offset: 2px;
+}
+
+.saved-growing-area
+span {
+  font-size: 0.85rem;
+}
+
+.saved-growing-area
+strong {
+  margin: 0;
+
+  overflow: hidden;
+
+  font-size: 0.62rem;
+
+  text-overflow:
+    ellipsis;
+
+  white-space: nowrap;
 }

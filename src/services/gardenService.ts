@@ -19,11 +19,41 @@ export type GardenAreaType =
   | "vegetable"
   | "herb";
 
+  export type GrowingAreaKind =
+  | "raised-bed"
+  | "vegetable-patch"
+  | "herb-bed"
+  | "border"
+  | "containers"
+  | "grow-bags"
+  | "greenhouse-bed"
+  | "custom";
+
 export type GardenArea = {
   id: string;
   name: string;
   description: string;
   type: GardenAreaType;
+
+    // New property hierarchy:
+  // Property -> Space -> Growing Area.
+  propertySpaceId?: string;
+
+  growingAreaKind?:
+    GrowingAreaKind;
+
+  // Position within the parent
+  // PropertySpace, from 0 to 1.
+  layoutX?: number;
+  layoutY?: number;
+
+  // Real-world size.
+  widthM?: number;
+  depthM?: number;
+
+  // Rotation relative to the
+  // parent property space.
+  rotation?: number;
 
   x: number;
   y: number;
